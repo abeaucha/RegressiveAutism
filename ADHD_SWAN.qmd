@@ -1,0 +1,89 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+file_ADHD_dx <- "data/raw/ADHD/SWANSCALE_ADHD_DX.xlsx"
+df_ADHD_dx <- readxl::read_excel(file_ADHD_dx)
+
+file_swan_i <- "data/raw/ADHD/SWANRATINGSCALE_ADHD_I_SUB.xlsx"
+df_swan_i <- readxl::read_excel(file_swan_i)
+
+file_swan_hi <- "data/raw/ADHD/SWANRATINGSCALE_ADHD_HI_SUB.xlsx"
+df_swan_hi <- readxl::read_excel(file_swan_hi)
+```
+
+```{r}
+df_ADHD_dx <- df_ADHD_dx %>% 
+  filter(numeric_value > 0)
+
+```
+
+```{r}
+df_swan_hi_distinct <- df_swan_hi %>% 
+  select(indexid, numeric_value) %>% 
+  group_by(indexid) %>% 
+  mutate(swan_hi = max(numeric_value)) %>% 
+  ungroup() %>% 
+  select(-numeric_value) %>% 
+  distinct()
+
+df_swan_i_distinct <- df_swan_i %>% 
+  select(indexid, numeric_value) %>% 
+  group_by(indexid) %>% 
+  mutate(swan_i = max(numeric_value)) %>% 
+  ungroup() %>% 
+  select(-numeric_value) %>% 
+  distinct()
+
+df_swan_pass <- df_swan_hi_distinct %>% 
+  left_join(df_swan_i_distinct, by = "indexid") %>% 
+  filter(swan_i >= 6, swan_hi >= 6)
+
+df_swan_pass_unique <- df_swan_pass %>% 
+  anti_join(df_ADHD_dx, by = "indexid")
+
+df_swan_pass_unique <- df_swan_pass_unique %>% 
+  mutate(code = "SWANRATINGSCALE_ADHD_I_HI_PASS",
+         numeric_value = 1, text_value = "", raw_value = 1, type = "NUMERIC_AMOUNT") %>% 
+  select(code, indexid, numeric_value, text_value, raw_value, type)
+
+outfile <- "data/raw/ADHD/SWANRATINGSCALE_ADHD_I_HI_PASS.csv"
+write_csv(df_swan_pass_unique, file = outfile)
+```
+
+```{r}
+df_test <- readxl::read_excel("data/raw/ADHD/mssng ADHD list.xlsx", sheet = "Hassan sorted", col_names = FALSE)
+colnames(df_test) <- c("code", "indexid", "numeric_value", "text_value", "raw_value", "type")
+
+```
+
+```{r}
+df_hassan_sorted <- readxl::read_excel("data/raw/ADHD/mssng ADHD list.xlsx", sheet = "Hassan sorted", col_names = FALSE)
+colnames(df_hassan_sorted) <- c("code", "indexid", "numeric_value", "text_value", "raw_value", "type")
+
+df_mssng <- readxl::read_excel("data/raw/ADHD/mssng ADHD list.xlsx", col_names = FALSE)
+colnames(df_mssng) <- c("indexid", "value")
+```
+```{r}
+ids_mssng <- df_mssng %>% pull(indexid) %>% unique()
+ids_hassan_sorted <- df_hassan_sorted %>% pull(indexid) %>% unique()
+  
+ids_mssng %in% ids_hassan_sorted
+```
+
+```{r}
+ids_hassan_sorted %in% ids_mssng
+```
+
+```{r}
+length(intersect(ids_mssng, ids_hassan_sorted))
+```
+

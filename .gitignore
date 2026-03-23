@@ -1,0 +1,8 @@
+.DS_Store
+.Rhistory
+.Rproj.user/
+.vscode/
+data/
+figures/
+*.html
+regressive_autism_analysis_v2_files/
