@@ -92,7 +92,7 @@ df_anxiety <- read_csv(file_anxiety, show_col_types = FALSE) %>%
 file_seizures <- "seizures.csv"
 file_seizures <- file.path(data_dir_proc, "Seizures", file_seizures)
 df_seizures <- read_csv(file_seizures, show_col_types = FALSE) %>% 
-  select(ID, Seizure = Seizure_PASS, Seizure_Date = Date)
+  select(ID, Seizure = Seizure_PASS, Seizure_Date)
 
 
 # Import SSP data -------------------------------------------------------------
