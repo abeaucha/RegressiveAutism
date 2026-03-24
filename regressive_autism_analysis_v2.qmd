@@ -1,13 +1,21 @@
 ---
 title: "Regressive Autism Analysis"
 author: "Antoine Beauchamp"
+date: today
 format: 
   html:
+    theme: flatly
     code-fold: true
     toc: true
     collapsible: true
+    code-tools: true
+    syntax-highlighting: github
+    code-copy: true
+    df-print: kable
 editor: visual
+lightbox: auto
 ---
+
 
 # Initialization {.colllapse}
 
@@ -187,7 +195,10 @@ contrasts_heatmap <- function(x, threshold_lwr = -log10(0.05), threshold_upr = 1
           legend.background = element_rect(
             fill = scales::alpha("white", 0.8),
             colour = NA
-          ))
+          )) +
+    theme(axis.title = element_text(size = 9),
+          axis.text = element_text(size = 9),
+          legend.title = element_text(size = 9))
   
   return(list(data = x, plot = plt))
 }
@@ -280,27 +291,25 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
   mutate(Group = factor(Group, levels = regressive_group_lvls))
 ```
 
+
 # Analysis
 
-## Regressive autism numbers
+## Sample size overview
 
-```{r}
+The total number of participants with ADI regression information is:
+
+```{r }
+#| echo: false
+
 n_ADIR <- nrow(df_regressive_autism)
-
 print(n_ADIR)
 ```
 
-```{r}
-df_regressive_autism %>% 
-  filter(is.na(Language))
-```
+Broken down by regression group:
 
 ```{r}
-df_regressive_autism %>% 
-  filter(is.na(Other))
-```
+#| echo: false
 
-```{r}
 df_regressive_autism %>% 
   select(ID, Language, Other) %>% 
   left_join(df_regressive_groups, by = c("Language", "Other")) %>% 
@@ -308,9 +317,29 @@ df_regressive_autism %>%
   count()
 ```
 
+```{r}
+#| echo: false
+#| eval: false
+
+df_regressive_autism %>% 
+  filter(is.na(Language))
+```
+
+```{r}
+#| echo: false
+#| eval: false
+
+df_regressive_autism %>% 
+  filter(is.na(Other))
+```
+
+
 ## Adaptive function
 
-```{r adaptive-func-lm}
+```{r, fig.width=9}
+#| label: adaptive-func-heatmap
+#| fig-cap: Simple demo R plot 
+
 # Filter for participants with adaptive function scores
 df_adaptive <- df_regressive_autism %>% 
   select(ID, Language, Other, AdaptiveScore) %>% 
@@ -324,64 +353,13 @@ df_adaptive_lm <- df_adaptive %>%
 
 # Evaluate model
 list_adaptive <- evaluate_model(x = df_adaptive_lm)
-summary(list_adaptive$model)
-```
 
-```{r adaptive-func-heatmap}
 # Generate heatmap from group contrasts
 list_adaptive_heatmap <- contrasts_heatmap(x = list_adaptive$contrasts)
 
-plt_adaptive_heatmap <- list_adaptive_heatmap$plot +
-  labs(title = "Adaptive Function vs. Regression Status")
+plt_adaptive_heatmap <- list_adaptive_heatmap$plot
 
-outfile <- "adaptive_function_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_adaptive_heatmap)
-dev.off()
-```
 
-```{r}
-regression_probs <- function() {}
-regression_scatter <- function(model, groups, point_size = 1, point_jitter_width = 0.3, 
-                               point_col = "grey20", point_alpha_values = rep(0.5, 4),
-                               crossbar_alpha = 0.1, crossbar_col = "red3",
-                               ylims = NULL, ybreaks = NULL, seed = 123) {
-  
-  x <- model$model$model %>% 
-    left_join(groups, by = c("Language", "Other"))
-  
-  x_summary <- model$emmeans %>% 
-    as_tibble() %>% 
-    left_join(groups, by = c("Language", "Other"))
-  
-  set.seed(seed)
-  plt <- ggplot(x, aes(x = Group, y = y, alpha = Group)) +
-    geom_jitter(size = point_size, width = point_jitter_width, height = 0, col = point_col) + 
-    geom_crossbar(data = x_summary, 
-                  mapping = aes(x = Group, y = emmean, ymin = lower.CL, ymax = upper.CL),
-                  alpha = crossbar_alpha, col = crossbar_col, fill = crossbar_col) + 
-    scale_alpha_manual(values = point_alpha_values, guide = "none") +
-    labs(x = "Regression Type") + 
-    theme_bw() +
-    theme(title = element_text(size = 9, hjust = 0.5))
-  
-  if (!is.null(ylims)) {
-    plt <- plt + coord_cartesian(ylim = ylims)
-  }
-  
-  if (!is.null(ybreaks)) {
-    plt <- plt + scale_y_continuous(breaks = ybreaks)
-  }
-  
-  return(plt)
-  
-}
-```
-
-```{r adaptive-func-scatter}
 plt_adaptive_scatter <- regression_scatter(model = list_adaptive, 
                                            groups = df_regressive_groups,
                                            point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
@@ -389,28 +367,34 @@ plt_adaptive_scatter <- regression_scatter(model = list_adaptive,
                                            ybreaks = seq(0, 200, by = 10))
 
 plt_adaptive_scatter <- plt_adaptive_scatter +
-  labs(y = "Adaptive Function Composite Score",
-       title = "Adaptive Function vs. Regression Status") 
+  labs(y = "Adaptive Function Composite Score")
 
-outfile <- "adaptive_function_scatter.pdf"
+plt_adaptive <- plt_adaptive_scatter + plt_adaptive_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Adaptive Function vs. Regression Status")
+
+outfile <- "adaptive_function.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_adaptive_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_adaptive)
+invisible(dev.off())
 
-plt_adaptive_scatter
+plt_adaptive
 ```
 
-```{r}
-#| echo: false
 
-knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
+**Linear regression output:**
+
+```{r}
+summary(list_adaptive$model)
 ```
 
 
 ## Full-scale IQ
+
+**Linear regression output:**
 
 ```{r}
 # Filter for participants with adaptive function scores
@@ -427,21 +411,12 @@ summary(list_IQ$model)
 ```
 
 ```{r}
+#| fig-width: 9 
+
 list_IQ_heatmap <- contrasts_heatmap(x = list_IQ$contrasts)
 
-plt_IQ_heatmap <- list_IQ_heatmap$plot +
-  labs(title = "IQ vs. Regression Status")
+plt_IQ_heatmap <- list_IQ_heatmap$plot 
 
-outfile <- "IQ_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_IQ_heatmap)
-dev.off()
-```
-
-```{r}
 plt_IQ_scatter <- regression_scatter(model = list_IQ, 
                                      groups = df_regressive_groups,
                                      point_alpha_values = c(0.3, 0.5, 0.5, 0.5),
@@ -449,26 +424,29 @@ plt_IQ_scatter <- regression_scatter(model = list_IQ,
                                      ybreaks = seq(0, 200, by = 10))
 
 plt_IQ_scatter <- plt_IQ_scatter +
-  labs(y = "Full-scale IQ",
-       title = "IQ vs. Regression Status") 
+  labs(y = "Full-scale IQ")
 
-outfile <- "IQ_scatter.pdf"
+plt_IQ <- plt_IQ_scatter + plt_IQ_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "IQ vs. Regression Status")
+
+outfile <- "IQ.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_IQ_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_IQ)
+invisible(dev.off())
 
-plt_IQ_scatter
+plt_IQ
 ```
 
 ```{r}
-# library(patchwork)
-# 
-# plt_IQ_scatter + plt_IQ_heatmap +
-#   plot_layout(widths = c(0.8, 0.2))
+#| echo: false
+
+knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
 ```
+
 
 ## ADOS
 
@@ -591,7 +569,6 @@ pdf(file = outfile,
 print(plt_ADOS_CSS_heatmap)
 dev.off()
 ```
-
 
 ```{r}
 plt_ADOS_CSS_scatter <- regression_scatter(model = list_ADOS_CSS, 
@@ -1123,7 +1100,6 @@ dev.off()
 plt_adhd_probs
 ```
 
-
 ## Anxiety
 
 ```{r}
@@ -1137,7 +1113,6 @@ n_intersect <- df_regressive_autism %>%
 
 tibble(`ADI-R` = n_ADIR, Anxiety = n_anxiety, Intersection = n_intersect)
 ```
-
 
 ```{r}
 df_regressive_autism %>% 
