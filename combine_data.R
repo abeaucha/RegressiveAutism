@@ -110,6 +110,7 @@ df_srs <- read_csv(file_srs, show_col_types = FALSE)
 
 
 # Import RBS-R data -----------------------------------------------------------
+# RBS not combined because there are repeated measures per participant
 
 # file_rbs <- "RBS.csv"
 # file_rbs <- file.path(data_dir_proc, "RBS", file_rbs)
