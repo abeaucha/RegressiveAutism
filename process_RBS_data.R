@@ -12,13 +12,11 @@ suppressPackageStartupMessages(library(readxl))
 # Functions -------------------------------------------------------------------
 
 import_rbs_file <- function(x) {
-  # select(read_excel(x), ID = indexid, score = numeric_value)
   select(read_excel(x), code, ID = indexid, score = numeric_value)
 }
 
 
 # Main ------------------------------------------------------------------------
-
 
 # Paths to SSP directories
 input_dir <- "data/raw/RBS-R/"
@@ -36,159 +34,82 @@ files <- c("RBSR_RBSALLT Overall Score.xlsx",
 # Prepend input directory path
 files <- file.path(input_dir, files)
 
-names(files) <- c("Overall", "Comp_Behv", "Rest_Behv", "Rit_Behv", 
-                  "Self_Inj_Behav", "Same_Behv", "Stereo_Behv")
-names(files) <- paste0("RBS_", names(files))
+# Import RBS files
+df_rbs_init <- files %>% 
+  map_dfr(.f = import_rbs_file)
 
-
-# Output file
-outfile <- "RBS.csv"
-outfile <- file.path(output_dir, outfile)
-
-# Import SSP files and export data frame
-df_rbs <- files %>% 
-  map_dfr(.f = import_rbs_file, .id = "code_new")
-
-write_csv(df_rbs, file = outfile)
-
-df_ids_w_multiple <- df_rbs %>% 
+# Identify participants with multiple data
+ids_w_multiple <- df_rbs_init %>% 
   group_by(ID, code) %>% 
   count() %>% 
   ungroup() %>% 
   filter(n > 1) %>% 
   distinct() %>% 
-  select(ID, code)
-
-df_rbs_unique <- df_rbs %>% 
-  anti_join(df_ids_w_multiple, by = "ID")
-
-df_rbs_unique<- df_rbs_unique %>% 
-  group_by(code, ID) %>% 
-  mutate(key = 1:n()) %>% 
-  ungroup()
-
-ids_unique <- df_rbs_unique %>% 
   pull(ID) %>% 
   unique()
 
-df_rbs_multiple <- df_rbs %>% 
-  semi_join(df_ids_w_multiple, by = c("ID", "code")) %>% 
-  arrange(code, ID, score)
+# Subset participants without multiple data
+df_rbs_unique <- df_rbs_init %>% 
+  filter(!(ID %in% ids_w_multiple)) %>% 
+  mutate(KEY = 1)
 
+# For participants with multiple data, spreadsheets have been downloaded
+# separately
+# Directories to these participants
+dirs_multiple <- list.files(file.path(input_dir, "IDS_multiple"))
 
-file <- "data/raw/date of tests.xlsx"
-df_tests <- read_excel(file)
-df_tests <- df_tests %>% 
-  select(code = Code, ID = `Index ID`, date = `Test Date`, score = `Numeric Value`)
+# RBS sub-domain codes
+codes <- c("ALLT", "CPT", "RST", "RTT", "SIT", "SMT", "STT")
+codes <- paste0("RBSR_RBS", codes)
 
-df_tests %>% 
-  select(code, ID, date, score) %>% 
-  filter(code == "RBSR_RBSAGE") %>% 
-  View()
+# IDs to omit (issues with spreadsheets)
+ids_omit <- c("1-0344-003", "1-0458-004", "2-1359-003")
+dirs_multiple <- dirs_multiple[!(dirs_multiple %in% ids_omit)]
 
-df_rbs_multiple <- df_rbs_multiple %>% 
-  left_join(df_tests, by = c("code", "ID", "score"))
-
-ids_multiple <- df_rbs_multiple %>% 
-  pull(ID) %>% 
-  unique()
-
-df_rbs_multiple %>% 
-  filter(!is.na(date)) %>% 
-  group_by(ID, date) %>% 
-  count() %>% 
-  arrange(desc(n)) %>% 
-  View()
-
-id <- "2-1089-004"
-tmp_id <- df_rbs_multiple %>% 
-  filter(ID == id) 
-tmp_id
-tmp_id_split <- split(x = tmp_id, f = tmp_id$code)
-tmp_id_split
-
-list_tmp_id_scores <- map(tmp_id_split, .f = function(x) {x$score})
-
-df_grid <- as_tibble(expand.grid(list_tmp_id_scores))
-
-df_grid %>%
-  mutate(total = rowSums(across(RBSR_RBSCPT:RBSR_RBSSTT), na.rm = TRUE)) %>% 
-  filter(total == RBSR_RBSALLT)
-
-df_rbs %>% 
-  filter(code == "RBSR_RBSALLT", ID == "2-1213-003")
-
-df_rbs %>% 
-  filter(ID == "2-1213-003")
-
-df_tests %>% 
-  filter(code == "RBSR_RBSALLT", ID == "2-1213-003")
-
-df_rbs_multiple 
-
-outfile <- "RBS_IDs_multiple.csv"
-outfile <- file.path(output_dir, outfile)
-
-df_ids_w_multiple <- df_rbs %>% 
-  group_by(ID, code) %>% 
-  count() %>% 
-  ungroup() %>% 
-  filter(n > 1) %>% 
-  select(ID) %>% 
-  distinct() %>% 
-  arrange()
-
-df_rbs %>% filter(str_detect(ID, "AU"))
-
-write_csv(df_ids_w_multiple, outfile)
-
-tmp <- import_rbs_file(files[1])
-tmp %>% 
-  group_by(ID) %>% 
-  count() %>% 
-  filter(n > 1)
-
-tmp %>% 
-  filter(ID == "1-0004-003")
-
-tmp <- df_rbs %>% 
-  filter(code == "RBS_Stereo_Behv") %>% 
-  distinct() 
-
-vars <- names(files)
-vars <- vars[2:length(vars)]
-ids_multiple <- c()
-for (var in vars) {
+# Iterate over participants with multiple data
+for (i in 1:length(dirs_multiple)) {
   
-  tmp <- df_rbs %>% 
-    filter(code == var) %>% 
-    distinct()
+  # Import participant data
+  path <- file.path(input_dir, "IDs_multiple", dirs_multiple[i])
+  file <- list.files(path)
+  file <- file.path(path, file)
+  df <- read_excel(file) 
   
-  ids_multiple_var <- tmp%>% 
-    group_by(ID) %>% 
-    count() %>% 
-    filter(n > 1) %>% 
-    pull(ID)
+  # Filter for RBS data
+  df <- df %>% 
+    filter(code %in% codes) %>% 
+    select(ID = indexid, code, Date = testdate, score = numeric_value) %>% 
+    mutate(Date = as.Date(Date))
   
-  print(var)
-  print(length(ids_multiple_var))
+  # Build data frame
+  if (i == 1) {
+    df_rbs_multiple <- df
+  } else {
+    df_rbs_multiple <- bind_rows(df_rbs_multiple, df)
+  }
   
-  ids_multiple <- c(ids_multiple, ids_multiple_var)
 }
 
-ids_mult_tab <- table(ids_multiple)
-sum(ids_mult_tab == 6)
+# Create a key for each participant to track 
+df_rbs_multiple <- df_rbs_multiple %>% 
+  arrange(ID, code, Date) %>% 
+  group_by(ID, code) %>% 
+  mutate(KEY = 1:n()) %>% 
+  ungroup()
+  
+# Convert multiple data to wide format
+df_rbs_multiple_wide <- df_rbs_multiple %>% 
+  pivot_wider(id_cols = c("ID", "Date", "KEY"), names_from = "code", values_from = "score")
 
-ids_multiple <- tmp %>% 
-  group_by(ID) %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(ID)
+# Convert unique data to wide format
+df_rbs_unique_wide <- df_rbs_unique %>% 
+  pivot_wider(id_cols = c("ID", "KEY"), names_from = "code", values_from = "score") %>% 
+  mutate(Date = NA)
 
-length(ids_multiple)
+# Bind unique and multiple data
+df_rbs <- bind_rows(df_rbs_unique_wide, df_rbs_multiple_wide)
 
-#%>% 
- # pivot_wider(id_cols = "ID", names_from = "code", values_from = "score") 
-
-#%>% 
-  # write_csv(file = outfile)
+# Export CSV
+outfile <- "RBS.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_rbs, outfile)
