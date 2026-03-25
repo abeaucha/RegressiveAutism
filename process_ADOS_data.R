@@ -142,7 +142,8 @@ df_ados_css <- df_ados_css %>%
   
 # Join calibrated scores to full data
 df_ados <- df_ados %>% 
-  left_join(df_ados_css, by = c("ID", "Date", "Code", "Score")) 
+  left_join(df_ados_css, by = c("ID", "Date", "Code", "Score")) %>% 
+  rename(OTS = Score)
 
 # Export ADOS scores
 outfile_ados <- "ADOS.csv"
