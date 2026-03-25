@@ -12,12 +12,12 @@ format:
     syntax-highlighting: github
     code-copy: true
     df-print: kable
+    echo: false
 editor: visual
 lightbox: auto
 ---
 
-
-# Initialization {.colllapse}
+# Initialization
 
 ```{r packages}
 #| echo: false
@@ -25,6 +25,8 @@ lightbox: auto
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(readxl))
 suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(lme4))
+suppressPackageStartupMessages(library(lmerTest))
 suppressPackageStartupMessages(library(patchwork))
 suppressPackageStartupMessages(library(rcartocolor))
 suppressPackageStartupMessages(library(RColorBrewer))
@@ -34,63 +36,23 @@ suppressPackageStartupMessages(library(viridis))
 ```{r functions}
 #| echo: false
 
-#' Evaluate linear model and hypothesis tests
-#'
-#' @param x (tibble) Tibble with columns "y", "Language", "Other"
-#'
-#' @returns (list) 
-evaluate_lm <- function(x) {
+
+compute_group_summaries <- function(x, groups) {
   
-  # Evaluate linear model
-  lm_out <- lm(y ~ Language*Other, data = x)
+  x_summary <- x %>% 
+    select(ID, Language, Other) %>% 
+    left_join(groups, by = c("Language", "Other")) %>% 
+    group_by(Group) %>% 
+    count() %>% 
+    ungroup()
   
-  # Generate group combinations
-  groups <- c("None", "Language", "Other", "Both", "Any")
-  mat_group_combn <- t(combn(groups, m = 2))
-  colnames(mat_group_combn) <- c("Reference", "Comparison")
-  df_group_combn <- as_tibble(mat_group_combn)
+  x_tot <- tibble(Group = "Total",
+                  n = sum(x_summary$n))
   
-  # Group contrast vectors
-  mat_contrasts <- rbind(
-    c(0, 1, 0, 0),          # Language vs. Baseline
-    c(0, 0, 1, 0),         # Other vs. Baseline
-    c(0, 1, 1, 1),         # Both vs. Baseline
-    c(0, 2/3, 2/3, 1/3),   # Any vs. Baseline
-    c(0, 1, -1, 0),        # Other vs. Language
-    c(0, 0, 1, 1),         # Both vs. Language
-    c(0, -1/3, 2/3, 1/3),  # Any vs. Language
-    c(0, 1, 0, 1),         # Both vs. Other
-    c(0, 2/3, -1/3, 1/3),  # Any vs. Other
-    c(0, -1/3, -1/3, -2/3) # Any vs. Both
-  ) 
-  colnames(mat_contrasts) <- names(coef(lm_out))
-  df_contrasts <- as_tibble(mat_contrasts)
+  x_summary <- bind_rows(x_summary, x_tot)
   
-  # Combine group combinations and contrasts
-  df_contrasts <- bind_cols(df_group_combn, df_contrasts)
+  return(x_summary)
   
-  # Initialize F-stat and p-value
-  df_contrasts <- df_contrasts %>% 
-    mutate(F.value = 0, p.value = 0)
-  
-  # Evaluate linear hypothesis tests for all contrasts
-  for (i in 1:nrow(df_contrasts)) {
-    
-    contrast_vec <- as.numeric(df_contrasts[i, names(coef(lm_out))])
-    lin_hypothesis_out <- car::linearHypothesis(model = lm_out,
-                                                hypothesis.matrix = contrast_vec,
-                                                rhs = 0)
-    
-    df_contrasts[[i, "F.value"]] <- lin_hypothesis_out[["F"]][2]
-    df_contrasts[[i, "p.value"]] <- lin_hypothesis_out[["Pr(>F)"]][2]
-    
-  }
-  
-  # Correct p-values for MC
-  df_contrasts <- df_contrasts %>% 
-    mutate(q.value = p.adjust(p.value, method = "fdr"))
-  
-  return(list(model = lm_out, contrasts = df_contrasts))
 }
 
 
@@ -133,6 +95,9 @@ evaluate_model <- function(x, type = "linear") {
   } else if (type == "logistic") {
     model <- glm(y ~ Language*Other, data = x, family = "binomial")
     emm <- emmeans(model, ~ Language*Other, type = "response") 
+  } else if (type == "mixed-effects") {
+    model <- lmer(y ~ Language*Other + (1|ID), data = x)
+    emm <- emmeans(model, ~ Language*Other) 
   } else {
     stop()
   }
@@ -190,7 +155,8 @@ contrasts_heatmap <- function(x, threshold_lwr = -log10(0.05), threshold_upr = 1
           axis.line.x.top = element_line(colour = "grey50"),
           axis.line.y.left   = element_blank(),
           axis.line.y.right = element_line(colour = "grey50"),
-          legend.position = c(0.02, 0.02),   # bottom-left inside panel
+          # legend.position = c(0.02, 0.02),   # bottom-left inside panel
+          legend.position = "bottom",
           legend.justification = c(0, 0),
           legend.background = element_rect(
             fill = scales::alpha("white", 0.8),
@@ -236,8 +202,13 @@ regression_scatter <- function(model, groups, point_size = 1, point_jitter_width
                                crossbar_alpha = 0.1, crossbar_col = "red3",
                                ylims = NULL, ybreaks = NULL, seed = 123) {
   
-  x <- model$model$model %>% 
-    left_join(groups, by = c("Language", "Other"))
+  if (class(model$model) == "lm") {
+    x <- model$model$model
+  } else if (class(model$model) == "lmerModLmerTest") {
+    x <- attributes(model$model)$frame  
+  }
+  
+  x <- left_join(x, groups, by = c("Language", "Other"))
   
   x_summary <- model$emmeans %>% 
     as_tibble() %>% 
@@ -292,29 +263,12 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
 ```
 
 
-# Analysis
-
-## Sample size overview
+# Sample size overview
 
 The total number of participants with ADI regression information is:
 
-```{r }
-#| echo: false
-
-n_ADIR <- nrow(df_regressive_autism)
-print(n_ADIR)
-```
-
-Broken down by regression group:
-
 ```{r}
-#| echo: false
-
-df_regressive_autism %>% 
-  select(ID, Language, Other) %>% 
-  left_join(df_regressive_groups, by = c("Language", "Other")) %>% 
-  group_by(Group) %>% 
-  count()
+compute_group_summaries(x = df_regressive_autism, groups = df_regressive_groups)
 ```
 
 ```{r}
@@ -334,12 +288,13 @@ df_regressive_autism %>%
 ```
 
 
-## Adaptive function
+--- 
 
-```{r, fig.width=9}
-#| label: adaptive-func-heatmap
-#| fig-cap: Simple demo R plot 
+# Adaptive function
 
+The subset of participants with adaptive function scores:
+
+```{r}
 # Filter for participants with adaptive function scores
 df_adaptive <- df_regressive_autism %>% 
   select(ID, Language, Other, AdaptiveScore) %>% 
@@ -350,6 +305,12 @@ df_adaptive_lm <- df_adaptive %>%
   select(ID, y = AdaptiveScore, 
          Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other))
+
+compute_group_summaries(x = df_adaptive_lm, groups = df_regressive_groups)
+```
+
+```{r, fig.width=9}
+#| label: adaptive-func-heatmap
 
 # Evaluate model
 list_adaptive <- evaluate_model(x = df_adaptive_lm)
@@ -384,7 +345,6 @@ invisible(dev.off())
 plt_adaptive
 ```
 
-
 **Linear regression output:**
 
 ```{r}
@@ -392,9 +352,9 @@ summary(list_adaptive$model)
 ```
 
 
-## Full-scale IQ
+---
 
-**Linear regression output:**
+# Full-scale IQ
 
 ```{r}
 # Filter for participants with adaptive function scores
@@ -406,12 +366,13 @@ df_IQ <- df_regressive_autism %>%
 df_IQ_lm <- df_IQ %>% 
   select(ID, y = IQ, Language, Other)  
 
-list_IQ <- evaluate_model(x = df_IQ_lm)
-summary(list_IQ$model)
+compute_group_summaries(x = df_IQ_lm, groups = df_regressive_groups)
 ```
 
 ```{r}
 #| fig-width: 9 
+
+list_IQ <- evaluate_model(x = df_IQ_lm)
 
 list_IQ_heatmap <- contrasts_heatmap(x = list_IQ$contrasts)
 
@@ -420,7 +381,7 @@ plt_IQ_heatmap <- list_IQ_heatmap$plot
 plt_IQ_scatter <- regression_scatter(model = list_IQ, 
                                      groups = df_regressive_groups,
                                      point_alpha_values = c(0.3, 0.5, 0.5, 0.5),
-                                     ylims = c(40, 170), 
+                                     ylims = c(40, 160), 
                                      ybreaks = seq(0, 200, by = 10))
 
 plt_IQ_scatter <- plt_IQ_scatter +
@@ -441,82 +402,118 @@ invisible(dev.off())
 plt_IQ
 ```
 
+**Linear regression output:**
+
+```{r}
+summary(list_IQ$model)
+```
+
+
+---
+
+# ADOS
+
+The subset of participants with ADOS scores:
+
+```{r}
+df_ADOS_CSS <- df_regressive_autism %>% 
+  select(ID, Language, Other, ADOS_CSS) %>% 
+  filter(!is.na(ADOS_CSS), !is.na(Language), !is.na(Other))
+
+df_ADOS_OTS <- df_regressive_autism %>% 
+  select(ID, Language, Other, ADOS_OTS) %>% 
+  filter(!is.na(ADOS_OTS), !is.na(Language), !is.na(Other))
+
+df_ADOS_CSS_n <- compute_group_summaries(x = df_ADOS_CSS, groups = df_regressive_groups)
+df_ADOS_OTS_n <- compute_group_summaries(x = df_ADOS_OTS, groups = df_regressive_groups)
+
+df_ADOS_n <- left_join(rename(df_ADOS_OTS_n, OTS = n),
+                       rename(df_ADOS_CSS_n, CSS = n),
+                       by = "Group")
+
+df_ADOS_n
+```
+
 ```{r}
 #| echo: false
+#| eval: false
 
-knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
-```
-
-
-## ADOS
-
-```{r}
-file_ADOS <- "data/processed/ADOS/ADOS.csv"
-df_ADOS_only <- read_csv(file_ADOS, show_col_types = FALSE)
-
-n_ADOS_OTS <- nrow(df_ADOS_only)
-n_ADOS_CSS <- df_ADOS_only %>% 
-  filter(!is.na(CSS)) %>% 
-  nrow()
-n_intersect_OTS <- df_regressive_autism %>% 
-  filter(!is.na(ADOS_Total)) %>% 
-  nrow()
-
-n_intersect_CSS <- df_regressive_autism %>% 
-  filter(!is.na(ADOS_CSS)) %>% 
-  nrow()
-
-tibble(Measure = c("Overall Total Score", "Calibrated Standard Score"), 
-       `ADI-R` = rep(n_ADIR, 2), 
-       `ADOS` = c(n_ADOS_OTS, n_ADOS_CSS), Intersection = c(n_intersect_OTS, n_intersect_CSS))
-```
-
-3,782 participants have overall total scores (OTS) and 2,877 participants have calibrated standard scores (CSS).
-
-```{r}
-df_regressive_autism %>% 
-  filter(!is.na(ADOS_Total)) %>% 
-  mutate(ADOS_zero = ADOS_Total == 0) %>% 
+df_ADOS_OTS %>% 
+  mutate(ADOS_zero = ADOS_OTS == 0) %>% 
   group_by(ADOS_zero) %>% 
   count()
 ```
 
-3,386 participants have non-zero ADOS OTS and 396 have values of zero for the OTS.
 
-### ADOS OTS with zeros excluded
+3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Moreover 3,373 participants have non-zero ADOS OTS and 394 have values of zero for the OTS.
+
+
+## ADOS CSS
 
 ```{r}
-# Filter for participants with adaptive function scores
-df_ADOS_OTS <- df_regressive_autism %>% 
-  select(ID, Language, Other, ADOS_Total) %>% 
-  filter(!is.na(ADOS_Total)) %>% 
-  filter(!is.na(Language), !is.na(Other)) %>% 
-  filter(ADOS_Total > 0)
+#| fig-width: 9 
 
+# Filter for participants with adaptive function scores
+df_ADOS_CSS_lm <- df_ADOS_CSS %>% 
+  select(ID, y = ADOS_CSS, 
+         Language, Other)  
+
+list_ADOS_CSS <- evaluate_model(x = df_ADOS_CSS_lm)
+
+list_ADOS_CSS_heatmap <- contrasts_heatmap(x = list_ADOS_CSS$contrasts)
+
+plt_ADOS_CSS_heatmap <- list_ADOS_CSS_heatmap$plot 
+
+plt_ADOS_CSS_scatter <- regression_scatter(model = list_ADOS_CSS, 
+                                           groups = df_regressive_groups,
+                                           point_alpha_values = c(0.1, 0.4, 0.4, 0.4),
+                                           ylims = c(0, 11),
+                                           ybreaks = seq(1, 10, by = 1)) 
+
+plt_ADOS_CSS_scatter <- plt_ADOS_CSS_scatter +
+  labs(y = "ADOS CSS") +
+  theme(panel.grid.minor.y = element_blank())
+
+
+plt_ADOS_CSS <- plt_ADOS_CSS_scatter + plt_ADOS_CSS_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "ADOS Calibrated Standard Score vs. Regression Status")
+
+outfile <- "ADOS_CSS.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ADOS_CSS)
+invisible(dev.off())
+
+plt_ADOS_CSS
+```
+
+**Linear regression output:**
+
+```{r}
+summary(list_ADOS_CSS$model)
+```
+
+
+## ADOS OTS with zeros excluded
+
+```{r}
+#| fig-width: 9 
+
+# Filter for participants with adaptive function scores
 df_ADOS_OTS_lm <- df_ADOS_OTS %>% 
-  select(ID, y = ADOS_Total, 
+  filter(ADOS_OTS > 0) %>% 
+  select(ID, y = ADOS_OTS, 
          Language, Other)  
 
 list_ADOS_OTS <- evaluate_model(x = df_ADOS_OTS_lm)
-summary(list_ADOS_OTS$model)
-```
 
-```{r}
 list_ADOS_OTS_heatmap <- contrasts_heatmap(x = list_ADOS_OTS$contrasts)
 
-plt_ADOS_OTS_heatmap <- list_ADOS_OTS_heatmap$plot +
-  labs(title = "ADOS OTS vs. Regression Status")
+plt_ADOS_OTS_heatmap <- list_ADOS_OTS_heatmap$plot 
 
-outfile <- "ADOS_OTS_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_ADOS_OTS_heatmap)
-dev.off()
-```
-
-```{r}
 plt_ADOS_OTS_scatter <- regression_scatter(model = list_ADOS_OTS, 
                                      groups = df_regressive_groups,
                                      point_alpha_values = c(0.1, 0.4, 0.4, 0.4),
@@ -524,75 +521,33 @@ plt_ADOS_OTS_scatter <- regression_scatter(model = list_ADOS_OTS,
                                      ybreaks = seq(0, 200, by = 2))
 
 plt_ADOS_OTS_scatter <- plt_ADOS_OTS_scatter +
-  labs(y = "ADOS Overall Total Score",
-       title = "ADOS OTS vs. Regression Status") 
+  labs(y = "ADOS OTS")
 
-outfile <- "ADOS_OTS_scatter.pdf"
+plt_ADOS_OTS <- plt_ADOS_OTS_scatter + plt_ADOS_OTS_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "ADOS Overall Total Score vs. Regression Status")
+
+outfile <- "ADOS_OTS.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_ADOS_OTS_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ADOS_OTS)
+invisible(dev.off())
 
-plt_ADOS_OTS_scatter
+plt_ADOS_OTS
 ```
 
-### ADOS CSS
+
+**Linear regression output:**
 
 ```{r}
-# Filter for participants with adaptive function scores
-df_ADOS_CSS <- df_regressive_autism %>% 
-  select(ID, Language, Other, ADOS_CSS) %>% 
-  filter(!is.na(ADOS_CSS)) %>% 
-  filter(!is.na(Language), !is.na(Other))
-
-df_ADOS_CSS_lm <- df_ADOS_CSS %>% 
-  select(ID, y = ADOS_CSS, 
-         Language, Other)  
-
-list_ADOS_CSS <- evaluate_model(x = df_ADOS_CSS_lm)
-summary(list_ADOS_CSS$model)
+summary(list_ADOS_OTS$model)
 ```
 
-```{r}
-list_ADOS_CSS_heatmap <- contrasts_heatmap(x = list_ADOS_CSS$contrasts)
 
-plt_ADOS_CSS_heatmap <- list_ADOS_CSS_heatmap$plot +
-  labs(title = "ADOS vs. Regression Status")
 
-outfile <- "ADOS_CSS_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_ADOS_CSS_heatmap)
-dev.off()
-```
-
-```{r}
-plt_ADOS_CSS_scatter <- regression_scatter(model = list_ADOS_CSS, 
-                                           groups = df_regressive_groups,
-                                           point_alpha_values = c(0.1, 0.4, 0.4, 0.4),
-                                           ylims = c(1, 10), 
-                                           ybreaks = seq(0, 20, by = 1))
-
-plt_ADOS_CSS_scatter <- plt_ADOS_CSS_scatter +
-  labs(y = "ADOS Calibrated Standard Score",
-       title = "ADOS CSS vs. Regression Status") 
-
-outfile <- "ADOS_CSS_scatter.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_ADOS_CSS_scatter)
-dev.off()
-
-plt_ADOS_CSS_scatter
-```
-
-### Analysis of ADOS OTS zero scores
+## Analysis of ADOS OTS zero scores
 
 ```{r}
 #| echo: false
@@ -823,7 +778,7 @@ tmp_IQ %>%
 
 The scores that do exist are low.
 
-#### Autism diagnosis by ADI-R sub-domain scores
+### Autism diagnosis by ADI-R sub-domain scores
 
 ```{r}
 #| echo: false
@@ -1006,43 +961,86 @@ df_ADOS_zeros %>%
   select(ID, n_pass, n_pass_drop_na)
 ```
 
-## ADHD
+
+---
+
+# ADHD
 
 ```{r}
-file_ADHD <- "data/processed/ADHD/ADHD.csv"
-df_ADHD_only <- read_csv(file_ADHD, show_col_types = FALSE)
-
-n_ADHD <- nrow(df_ADHD_only)
-n_intersect <- df_regressive_autism %>% 
-  filter(!is.na(ADHD)) %>% 
-  nrow()
-
-tibble(`ADI-R` = n_ADIR, ADHD = n_ADHD, Intersection = n_intersect)
+# file_ADHD <- "data/processed/ADHD/ADHD.csv"
+# df_ADHD_only <- read_csv(file_ADHD, show_col_types = FALSE)
+# 
+# n_ADHD <- nrow(df_ADHD_only)
+# n_intersect <- df_regressive_autism %>% 
+#   filter(!is.na(ADHD)) %>% 
+#   nrow()
+# 
+# tibble(`ADI-R` = n_ADIR, ADHD = n_ADHD, Intersection = n_intersect)
 ```
 
 ```{r}
 df_regressive_autism %>% 
+  filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(ADHD) %>% 
-  count()
+  count() %>% 
+  ungroup() %>% 
+  mutate(ADHD = ifelse(ADHD, "Yes", "No"))
 ```
+
 
 ```{r}
 df_ADHD <- df_regressive_autism %>% 
   select(ID, Language, Other, ADHD) %>% 
-  mutate(ADHD = ifelse(is.na(ADHD), FALSE, ADHD))
-# filter(!is.na(ADHD))
+  filter(!is.na(ADHD), !is.na(Language), !is.na(Other))
 
+compute_group_summaries(x = df_ADHD, groups = df_regressive_groups)
+```
+
+
+```{r fig.width = 9}
 df_ADHD_lr <- df_ADHD %>% 
   select(ID, y = ADHD, 
-         Language = Language, 
-         Other = Other) %>% 
-  filter(!is.na(Language), !is.na(Other))
+         Language, Other) 
 
 list_ADHD <- evaluate_model(x = df_ADHD_lr, type = "logistic")
+
+
+list_ADHD_heatmap <- contrasts_heatmap(x = list_ADHD$contrasts)
+
+plt_ADHD_heatmap <- list_ADHD_heatmap$plot 
+
+plt_ADHD_probs <- regression_probs(model = list_ADHD, 
+                                   groups = df_regressive_groups,
+                                   ybreaks = seq(0, 1, by = 0.1),
+                                   ylims = c(0, 1))
+
+plt_ADHD <- plt_ADHD_probs + plt_ADHD_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "ADHD vs. Regression Status")
+
+outfile <- "ADHD.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ADHD)
+invisible(dev.off())
+
+plt_ADHD
+```
+
+
+**Logistic regression output:**
+
+```{r}
 summary(list_ADHD$model)
 ```
 
+
 ```{r}
+#| echo: false
+#| eval: false
+
 df_ADHD %>% 
   group_by(ADHD) %>% 
   summarise(N = n(), prop = N/nrow(.),
@@ -1050,6 +1048,9 @@ df_ADHD %>%
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_ADHD_lr %>% 
   group_by(Language, Other) %>% 
   mutate(N_per_group = n()) %>% 
@@ -1065,135 +1066,82 @@ df_ADHD_lr %>%
   filter(y)
 ```
 
-```{r}
-list_ADHD_heatmap <- contrasts_heatmap(x = list_ADHD$contrasts)
+---
 
-plt_ADHD_heatmap <- list_ADHD_heatmap$plot +
-  labs(title = "ADHD vs. Regression Status")
-
-outfile <- "ADHD_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_ADHD_heatmap)
-dev.off()
-```
-
-```{r}
-plt_adhd_probs <- regression_probs(model = list_ADHD, 
-                                   groups = df_regressive_groups,
-                                   ybreaks = seq(0, 1, by = 0.02),
-                                   ylims = c(0, 0.2))
-
-plt_adhd_probs <- plt_adhd_probs +
-  labs(title = "ADHD vs. Regression Status")
-
-outfile <- "ADHD_probabilities.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_adhd_probs)
-dev.off()
-
-plt_adhd_probs
-```
-
-## Anxiety
-
-```{r}
-file_anxiety <- "data/processed/Anxiety/anxiety.csv"
-df_anxiety_only <- read_csv(file_anxiety, show_col_types = FALSE)
-
-n_anxiety <- nrow(df_anxiety_only)
-n_intersect <- df_regressive_autism %>% 
-  filter(!is.na(Anxiety)) %>% 
-  nrow()
-
-tibble(`ADI-R` = n_ADIR, Anxiety = n_anxiety, Intersection = n_intersect)
-```
+# Anxiety
 
 ```{r}
 df_regressive_autism %>% 
+  filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Anxiety) %>% 
-  count()
+  count() %>% 
+  ungroup() %>% 
+  mutate(Anxiety = ifelse(Anxiety, "Yes", "No"))
 ```
+
 
 ```{r}
 df_anxiety <- df_regressive_autism %>% 
   select(ID, Language, Other, Anxiety) %>% 
-  mutate(Anxiety = ifelse(is.na(Anxiety), FALSE, Anxiety))
-# filter(!is.na(Anxiety))
+  filter(!is.na(Anxiety), !is.na(Language), !is.na(Other))
 
+compute_group_summaries(x = df_anxiety, groups = df_regressive_groups)
+```
+
+
+```{r fig.width = 9}
 df_anxiety_lr <- df_anxiety %>% 
   select(ID, y = Anxiety, 
-         Language, Other) %>% 
-  filter(!is.na(Language), !is.na(Other))
+         Language, Other) 
 
 list_anxiety <- evaluate_model(x = df_anxiety_lr, type = "logistic")
+
+
+list_anxiety_heatmap <- contrasts_heatmap(x = list_anxiety$contrasts)
+
+plt_anxiety_heatmap <- list_anxiety_heatmap$plot 
+
+plt_anxiety_probs <- regression_probs(model = list_anxiety, 
+                                   groups = df_regressive_groups,
+                                   ybreaks = seq(0, 1, by = 0.1),
+                                   ylims = c(0, 1))
+
+plt_anxiety <- plt_anxiety_probs + plt_anxiety_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Anxiety vs. Regression Status")
+
+outfile <- "anxiety.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_anxiety)
+invisible(dev.off())
+
+plt_anxiety
+```
+
+
+**Logistic regression output:**
+
+```{r}
 summary(list_anxiety$model)
 ```
 
-```{r}
-df_anxiety %>% 
-  group_by(Anxiety) %>% 
-  summarise(N = n(), prop = N/nrow(.),
-            .groups = "drop")
-```
 
 ```{r}
-df_anxiety_lr %>% 
-  group_by(Language, Other) %>% 
-  mutate(N_per_group = n()) %>% 
-  ungroup() %>% 
-  group_by(Language, Other, y) %>% 
-  mutate(N = n()) %>% 
-  ungroup() %>% 
-  select(-ID) %>% 
-  distinct() %>% 
-  mutate(prop = N/N_per_group) %>% 
-  select(Language, Other, y, N_per_group, N, prop) %>% 
-  arrange(Language, Other, y) %>% 
-  filter(y)
+#| echo: false
+
+knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
 ```
 
-```{r}
-list_anxiety_heatmap <- contrasts_heatmap(x = list_anxiety$contrasts)
 
-plt_anxiety_heatmap <- list_anxiety_heatmap$plot +
-  labs(title = "Anxiety vs. Regression Status")
 
-outfile <- "anxiety_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_anxiety_heatmap)
-dev.off()
-```
 
-```{r}
-plt_anxiety_probs <- regression_probs(model = list_anxiety, 
-                                   groups = df_regressive_groups,
-                                   ybreaks = seq(0, 1, by = 0.02),
-                                   ylims = c(0, 0.2))
 
-plt_anxiety_probs <- plt_anxiety_probs +
-  labs(title = "Anxiety vs. Regression Status")
+---
 
-outfile <- "anxiety_probabilities.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_anxiety_probs)
-dev.off()
-
-plt_anxiety_probs
-```
-
-## Seizures
+# Seizures
 
 ```{r}
 nrow(df_regressive_autism)
@@ -1291,7 +1239,7 @@ print(plt_seizures_probs)
 dev.off()
 ```
 
-### Seizures in three age bins
+## Seizures in three age bins
 
 ```{r}
 df_seizures_binned <- df_seizures %>% 
@@ -1429,7 +1377,7 @@ print(plt_seizures_heatmap_binned)
 dev.off()
 ```
 
-### Seizures in two age bins
+## Seizures in two age bins
 
 ```{r}
 bin_cutoff <- 5
@@ -1553,7 +1501,7 @@ print(plt_seizures_heatmap_binned)
 dev.off()
 ```
 
-### Controlling for age
+## Controlling for age
 
 ```{r}
 df_seizures_lr_age <- df_seizures %>%
@@ -1687,7 +1635,7 @@ ggplot(df_contrasts, aes(x = Age_Centered + age_mean, y = estimate)) +
   theme_bw()
 ```
 
-### Controlling for IQ
+## Controlling for IQ
 
 ```{r}
 df_seizures_lr_IQ <- df_seizures %>%
@@ -1716,7 +1664,7 @@ df_seizures_lr_IQ %>%
   distinct()
 ```
 
-## Sensory (SSP)
+# Sensory (SSP)
 
 ```{r}
 df_SSP <- df_regressive_autism %>%
@@ -1754,7 +1702,7 @@ dev.off()
 plt_SSP_scatter
 ```
 
-### SSP Auditory Filtering
+## SSP Auditory Filtering
 
 ```{r}
 # Construct data frame for model
@@ -1840,7 +1788,7 @@ print(plt_SSP_heatmap)
 dev.off()
 ```
 
-### SSP Visual-Auditory
+## SSP Visual-Auditory
 
 ```{r}
 # Construct data frame for model
@@ -1926,7 +1874,7 @@ print(plt_SSP_heatmap)
 dev.off()
 ```
 
-## Socialization (SRS)
+# Socialization (SRS)
 
 ```{r}
 df_SRS <- df_regressive_autism %>%
@@ -2016,14 +1964,14 @@ print(plt_SRS_heatmap)
 dev.off()
 ```
 
-## Language (CCC)
+# Language (CCC)
 
 ```{r}
 df_language <- df_regressive_autism %>%
   select(ID, contains("Regressive"), contains("CCC"), IQ)
 ```
 
-### SIDC
+## SIDC
 
 ```{r}
 # Construct data frame for model
@@ -2121,111 +2069,261 @@ summary(mod)
 
 How do I do contrasts then? Contrasts at mean IQ, since we're not running an interaction.
 
-## Repetitive behaviours (RBS-R)
+# Repetitive behaviours (RBS-R)
 
 ```{r}
 file <- "data/processed/RBS-R/RBS.csv"
 df_rbs <- read_csv(file)
-
-ids_w_multiple <- df_rbs %>% 
-  group_by(code, ID) %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  ungroup() %>% 
-  pull(ID) %>% 
-  unique()
-
-df_rbs_unique <- df_rbs %>% 
-  filter(!(ID %in% ids_w_multiple)) %>% 
-  select(code = code_new, ID, score) %>% 
-  pivot_wider(id_cols = ID, names_from = code, values_from = score)
-
-df_rbs_unique <- df_rbs_unique %>% 
-  filter(!is.na(RBS_Overall))
 ```
 
-```{r}
-df_rbs_regressive <- df_regressive_autism %>% 
-  select(ID, Language = Regressive_Language, Other = Regressive_Other) %>% 
-  left_join(df_rbs_unique, by = "ID") %>% 
-  filter(!is.na(RBS_Overall)) %>% 
-  filter(!is.na(Language), !is.na(Other))
 
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Overall, 
-         Language, Other)  
+## RBS-R original sub-domains
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
-summary(list_rbs$model)
+### Compulsive Behaviour
+
+```{r fig.width = 9}
+df_rbs_cpt <- df_rbs %>% 
+  select(ID, y = RBSR_RBSCPT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_cpt <- evaluate_model(x = df_rbs_cpt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_cpt_heatmap <- contrasts_heatmap(x = list_rbs_cpt$contrasts)
+
+plt_rbs_cpt_heatmap <- list_rbs_cpt_heatmap$plot
+
+
+plt_rbs_cpt_scatter <- regression_scatter(model = list_rbs_cpt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(0, 25))
+
+plt_rbs_cpt_scatter <- plt_rbs_cpt_scatter +
+labs(y = "RBS-R Compulsive Behaviour")
+
+plt_rbs_cpt <- plt_rbs_cpt_scatter + plt_rbs_cpt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Compulsive Behaviour vs. Regression Status")
+
+outfile <- "rbs_cpt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_cpt)
+invisible(dev.off())
+
+plt_rbs_cpt
 ```
 
-```{r}
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
+
+### Restricted Behaviour
+
+```{r fig.width = 9}
+df_rbs_rst <- df_rbs %>% 
+  select(ID, y = RBSR_RBSRST) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_rst <- evaluate_model(x = df_rbs_rst, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_rst_heatmap <- contrasts_heatmap(x = list_rbs_rst$contrasts)
+
+plt_rbs_rst_heatmap <- list_rbs_rst_heatmap$plot
+
+
+plt_rbs_rst_scatter <- regression_scatter(model = list_rbs_rst, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_rst_scatter <- plt_rbs_rst_scatter +
+labs(y = "RBS-R Restricted Behaviour")
+
+plt_rbs_rst <- plt_rbs_rst_scatter + plt_rbs_rst_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Restricted Behaviour vs. Regression Status")
+
+outfile <- "rbs_rst.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_rst)
+invisible(dev.off())
+
+plt_rbs_rst
 ```
 
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Comp_Behv, 
-         Language, Other)  
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
+### Ritual Behaviour
 
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
+```{r fig.width = 9}
+df_rbs_rtt <- df_rbs %>% 
+  select(ID, y = RBSR_RBSRTT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_rtt <- evaluate_model(x = df_rbs_rtt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_rtt_heatmap <- contrasts_heatmap(x = list_rbs_rtt$contrasts)
+
+plt_rbs_rtt_heatmap <- list_rbs_rtt_heatmap$plot
+
+
+plt_rbs_rtt_scatter <- regression_scatter(model = list_rbs_rtt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_rtt_scatter <- plt_rbs_rtt_scatter +
+labs(y = "RBS-R Ritual Behaviour")
+
+plt_rbs_rtt <- plt_rbs_rtt_scatter + plt_rbs_rtt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Ritual Behaviour vs. Regression Status")
+
+outfile <- "rbs_rtt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_rtt)
+invisible(dev.off())
+
+plt_rbs_rtt
 ```
 
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Rest_Behv, 
-         Language, Other)  
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
+### Self-Injurious Behaviour
 
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
+```{r fig.width = 9}
+df_rbs_sit <- df_rbs %>% 
+  select(ID, y = RBSR_RBSSIT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_sit <- evaluate_model(x = df_rbs_sit, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_sit_heatmap <- contrasts_heatmap(x = list_rbs_sit$contrasts)
+
+plt_rbs_sit_heatmap <- list_rbs_sit_heatmap$plot
+
+
+plt_rbs_sit_scatter <- regression_scatter(model = list_rbs_sit, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_sit_scatter <- plt_rbs_sit_scatter +
+labs(y = "RBS-R Self-Injurious Behaviour")
+
+plt_rbs_sit <- plt_rbs_sit_scatter + plt_rbs_sit_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Self-Injurious Behaviour vs. Regression Status")
+
+outfile <- "rbs_sit.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_sit)
+invisible(dev.off())
+
+plt_rbs_sit
 ```
 
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Rit_Behv, 
-         Language, Other)  
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
+### Sameness Behaviour
 
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
+```{r fig.width = 9}
+df_rbs_smt <- df_rbs %>% 
+  select(ID, y = RBSR_RBSSMT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_smt <- evaluate_model(x = df_rbs_smt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_smt_heatmap <- contrasts_heatmap(x = list_rbs_smt$contrasts)
+
+plt_rbs_smt_heatmap <- list_rbs_smt_heatmap$plot
+
+
+plt_rbs_smt_scatter <- regression_scatter(model = list_rbs_smt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_smt_scatter <- plt_rbs_smt_scatter +
+labs(y = "RBS-R Sameness Behaviour")
+
+plt_rbs_smt <- plt_rbs_smt_scatter + plt_rbs_smt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Sameness Behaviour vs. Regression Status")
+
+outfile <- "rbs_smt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_smt)
+invisible(dev.off())
+
+plt_rbs_smt
 ```
 
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Self_Inj_Behav, 
-         Language, Other)  
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
+### Stereotyped Behaviour
 
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
+```{r fig.width = 9}
+df_rbs_stt <- df_rbs %>% 
+  select(ID, y = RBSR_RBSSTT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_stt <- evaluate_model(x = df_rbs_stt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_stt_heatmap <- contrasts_heatmap(x = list_rbs_stt$contrasts)
+
+plt_rbs_stt_heatmap <- list_rbs_stt_heatmap$plot
+
+
+plt_rbs_stt_scatter <- regression_scatter(model = list_rbs_stt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_stt_scatter <- plt_rbs_stt_scatter +
+labs(y = "RBS-R Stereotyped Behaviour")
+
+plt_rbs_stt <- plt_rbs_stt_scatter + plt_rbs_stt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Stereotyped Behaviour vs. Regression Status")
+
+outfile <- "rbs_stt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_stt)
+invisible(dev.off())
+
+plt_rbs_stt
 ```
 
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Same_Behv, 
-         Language, Other)  
+## RBS-R factor analysis
 
-list_rbs <- evaluate_model(x = df_rbs_lm)
-
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
-```
-
-```{r}
-df_rbs_lm <- df_rbs_regressive %>% 
-  select(ID, y = RBS_Stereo_Behv, 
-         Language, Other)  
-
-list_rbs <- evaluate_model(x = df_rbs_lm)
-
-list_rbs_heatmap <- contrasts_heatmap(x = list_rbs$contrasts)
-list_rbs_heatmap$plot
-```
