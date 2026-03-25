@@ -67,7 +67,7 @@ df_global_ability <- read_excel(file_global_ability) %>%
 file_ADOS <- "ADOS.csv"
 file_ADOS <- file.path(data_dir_proc, "ADOS", file_ADOS)
 df_ADOS <- read_csv(file_ADOS, show_col_types = FALSE) %>% 
-  select(ID, ADOS_Total = Score, ADOS_CSS = CSS, 
+  select(ID, ADOS_OTS = OTS, ADOS_CSS = CSS, 
          ADOS_Age = Age, ADOS_Date = Date)
 
 
