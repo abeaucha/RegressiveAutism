@@ -262,7 +262,7 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
   mutate(Group = factor(Group, levels = regressive_group_lvls))
 ```
 
-# Sample size overview
+# Sample overview
 
 The total number of participants with ADI regression information is:
 
@@ -1110,11 +1110,11 @@ plt_anxiety
 summary(list_anxiety$model)
 ```
 
-```{r}
-#| echo: false
 
-knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
-```
+------------------------------------------------------------------------
+
+# Depression
+
 
 ------------------------------------------------------------------------
 
@@ -1169,7 +1169,11 @@ invisible(dev.off())
 plt_seizures
 ```
 
-```{r}
+
+## Seizures in three age bins
+
+
+```{r fig.width = 9}
 df_seizures_age <- df_seizures %>% 
   mutate(Seizure_Date = ifelse(Seizure_Date == "1900-01-01", NA, Seizure_Date)) %>% 
   mutate(Seizure_Date = as.Date(Seizure_Date)) %>% 
@@ -1186,8 +1190,6 @@ ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure)) +
   theme_bw()
 ```
 
-## Seizures in three age bins
-
 ```{r}
 df_seizures_binned <- df_seizures_age %>% 
   mutate(AgeBin = case_when(Seizure_Age < 5 ~ "< 5",
@@ -1202,7 +1204,10 @@ df_seizures_binned <- df_seizures_binned %>%
 
 df_seizures_binned %>% 
   group_by(AgeBin) %>% 
-  count()
+  count() %>% 
+  ungroup() %>% 
+  mutate(`Age Bin` = c("Under 5", "5 to 12", "Over 12")) %>% 
+  select(`Age Bin`, n)
 ```
 
 
@@ -1218,17 +1223,17 @@ list_seizures_binned <- map(list_seizures_binned_inputs, .f = evaluate_model, ty
 
 ```
 
-```{r}
+```{r fig.width = 9}
 df_seizures_binned_plt <- map_dfr(list_seizures_binned, 
                                   .f = function(x) {as_tibble(x[["emmeans"]])},
                                   .id = "AgeBin")
 
 df_seizures_binned_plt <- df_seizures_binned_plt %>% 
   mutate(AgeBin = factor(AgeBin, levels = c("< 5", "5-12", ">= 12"))) %>% 
-  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Below 5",
+  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Under 5",
                               AgeBin == "5-12" ~ "5 to 12",
-                              AgeBin == ">= 12" ~ "Above 12"),
-         AgeLabel = factor(AgeLabel, levels = c("Below 5", "5 to 12", "Above 12")))
+                              AgeBin == ">= 12" ~ "Over 12"),
+         AgeLabel = factor(AgeLabel, levels = c("Under 5", "5 to 12", "Over 12")))
 
 plt_lvls <- c("None", "Language", "Other", "Both")
 
@@ -1244,30 +1249,20 @@ plt_seizures_probs_binned <- ggplot(df_seizures_binned_plt,
   scale_x_discrete(labels = plt_lvls) + 
   scale_y_continuous(breaks = seq(0, 1, by = 0.1)) + 
   labs(x = "Regression Type",
-       y = "Probability of seizures",
-       title = "Seizures vs. Regression Status") +
+       y = "Probability of seizures") +
   theme_bw()
 
-outfile <- "seizures_probabilities_age_binned_3.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(8, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_probs_binned)
-dev.off()
-```
 
-```{r}
 df_seizures_binned_heatmap <- map_dfr(list_seizures_binned,
                                       .f = function(x) {contrasts_heatmap(x = x[["contrasts"]])[["data"]]}, 
                                       .id = "AgeBin")
 
 df_seizures_binned_heatmap <- df_seizures_binned_heatmap %>% 
   mutate(AgeBin = factor(AgeBin, levels = c("< 5", "5-12", ">= 12"))) %>% 
-  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Below 5",
+  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Under 5",
                               AgeBin == "5-12" ~ "5 to 12",
-                              AgeBin == ">= 12" ~ "Above 12"),
-         AgeLabel = factor(AgeLabel, levels = c("Below 5", "5 to 12", "Above 12")))
+                              AgeBin == ">= 12" ~ "Over 12"),
+         AgeLabel = factor(AgeLabel, levels = c("Under 5", "5 to 12", "Over 12")))
 
 threshold_lwr <- -log10(0.05)
 threshold_upr <- 10
@@ -1293,26 +1288,36 @@ plt_seizures_heatmap_binned <- ggplot(df_seizures_binned_heatmap,
         axis.line.x.top = element_line(colour = "grey50"),
         axis.line.y.left   = element_blank(),
         axis.line.y.right = element_line(colour = "grey50"),
-        legend.position = c(0.02, 0.02),   # bottom-left inside panel
-        legend.justification = c(0, 0),
-        legend.background = element_rect(
-          fill = scales::alpha("white", 0.8),
-          colour = NA
-        ))
+        legend.position = "bottom")
+        # legend.position = c(0.02, 0.02),   # bottom-left inside panel
+        # legend.justification = c(0, 0),
+        # legend.background = element_rect(
+        #   fill = scales::alpha("white", 0.8),
+        #   colour = NA
+        # ))
 
-outfile <- "seizures_heatmap_binned_3.pdf"
+
+plt_seizures_binned <- plt_seizures_probs_binned / plt_seizures_heatmap_binned
+
+outfile <- "seizures_age_binned.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(8, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_heatmap_binned)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(6, "in"))
+print(plt_seizures_binned)
+invisible(dev.off())
+
+plt_seizures_binned
 ```
+
 
 
 ## Controlling for age
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_seizures_lr_age <- df_seizures_age %>%
   select(ID, y = Seizure, 
          Language, Other, Age = Seizure_Age) %>% 
@@ -1329,6 +1334,9 @@ ggplot(df_age_quantiles, aes(x = Age, y = probs)) +
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 library(splines)
 
 df_seizures_lr_age <- df_seizures_lr_age %>% 
@@ -1347,10 +1355,16 @@ summary(mod)
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 range(df_seizures_lr_age$Age)
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 age_mean <- mean(df_seizures_lr_age$Age)
 
 age_seq <- seq(1, 30, by = 1)
@@ -1385,6 +1399,9 @@ df_predict_input <- df_predict_input %>%
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_plot <- df_predict_input %>% 
   filter(group %in% c("None", "Both"))
 
@@ -1400,6 +1417,9 @@ ggplot(df_plot, aes(x = Age_Centered + age_mean, y = OR, fill = group)) +
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 ggplot(df_plot, aes(x = Age_Centered + age_mean, y = prob, fill = group)) + 
   geom_ribbon(mapping = aes(ymin = prob_lwr, ymax = prob_upr),
               alpha = 0.3) +
@@ -1412,6 +1432,9 @@ ggplot(df_plot, aes(x = Age_Centered + age_mean, y = prob, fill = group)) +
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 emm <- emmeans(mod, ~ Language*Other | Age_Centered, at = list(Age_Centered = age_seq_centered))
 
 
@@ -1439,6 +1462,9 @@ ggplot(df_contrasts, aes(x = Age_Centered + age_mean, y = estimate)) +
 ## Controlling for IQ
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_seizures_lr_IQ <- df_seizures %>%
   select(ID, y = Seizure, 
          Language = Regressive_Language, 
@@ -1449,6 +1475,9 @@ nrow(df_seizures_lr_IQ)
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_seizures_lr_IQ %>% 
   group_by(Language, Other) %>% 
   mutate(N_per_group = n()) %>% 
@@ -1465,316 +1494,436 @@ df_seizures_lr_IQ %>%
   distinct()
 ```
 
-# Sensory (SSP)
+
+------------------------------------------------------------------------
+
+
+# Sensory processing
+
+To evaluate sensory processing we used the **Short Sensory Profile (SSP)**.
+
 
 ```{r}
 df_SSP <- df_regressive_autism %>%
   select(ID, Language, Other, contains("SSP")) %>% 
-  filter(!is.na(SSP_TOTAL))
+  filter(!is.na(SSP_TOTAL)) %>% 
+  filter(!is.na(Language), !is.na(Other))
 
 # Construct data frame for model
 df_SSP_lm <- df_SSP %>% 
   select(ID, y = SSP_TOTAL, 
-         Language, Other) %>% 
-  filter(!is.na(Language), !is.na(Other))
+         Language, Other) 
 
-# Evaluate model
-list_SSP <- evaluate_model(x = df_SSP_lm)
-summary(list_SSP$model)
+compute_group_summaries(x = df_SSP_lm, groups = df_regressive_groups)
 ```
+
+## SSP Total Score
 
 ```{r}
-plt_SSP_scatter <- regression_scatter(model = list_SSP, 
+#| fig-width: 9 
+
+list_SSP_TOT <- evaluate_model(x = df_SSP_lm)
+
+list_SSP_TOT_heatmap <- contrasts_heatmap(x = list_SSP_TOT$contrasts)
+
+plt_SSP_TOT_heatmap <- list_SSP_TOT_heatmap$plot 
+
+plt_SSP_TOT_scatter <- regression_scatter(model = list_SSP_TOT, 
                                      groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(50, 200),
                                      ybreaks = seq(0, 200, by = 10))
 
-plt_SSP_scatter <- plt_SSP_scatter +
-  labs(y = "SSP Total Score",
-       title = "Short Sensory Profile (SSP) vs. Regression Status") 
+plt_SSP_TOT_scatter <- plt_SSP_TOT_scatter +
+  labs(y = "SSP Total Score")
 
-outfile <- "ssp_total_scatter.pdf"
+plt_SSP_TOT <- plt_SSP_TOT_scatter + plt_SSP_TOT_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SSP Total vs. Regression Status")
+
+outfile <- "SSP_TOT.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_SSP_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SSP_TOT)
+invisible(dev.off())
 
-plt_SSP_scatter
+plt_SSP_TOT
 ```
+
+
 
 ## SSP Auditory Filtering
 
 ```{r}
+#| fig-width: 9 
+
 # Construct data frame for model
-df_SSP_lm <- df_SSP %>% 
+df_SSP_AUD_FILT_lm <- df_SSP %>% 
   select(ID, y = SSP_AUD_FILTER, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other) %>% 
+         Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other))
 
-# Evaluate model
-list_SSP <- evaluate_model(x = df_SSP_lm)
-summary(list_SSP$model)
-```
+list_SSP_AUD_FILT <- evaluate_model(x = df_SSP_AUD_FILT_lm)
 
-```{r}
-cols <- c("Regressive_Language", "Regressive_Other")
+list_SSP_AUD_FILT_heatmap <- contrasts_heatmap(x = list_SSP_AUD_FILT$contrasts)
 
-cols_new <- cols %>% 
-  str_remove("Regressive_")  
+plt_SSP_AUD_FILT_heatmap <- list_SSP_AUD_FILT_heatmap$plot 
 
-cols <- c("ID", cols, "SSP_AUD_FILTER")
-cols_new <- c("ID", cols_new, "SSP_AUD_FILTER")
+plt_SSP_AUD_FILT_scatter <- regression_scatter(model = list_SSP_AUD_FILT, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 35),
+                                     ybreaks = seq(0, 200, by = 5))
 
-plt_lvls <- c("None", "Language", "Other", "Both")
+plt_SSP_AUD_FILT_scatter <- plt_SSP_AUD_FILT_scatter +
+  labs(y = "SSP Auditory Filtering Score")
 
-df_SSP_plt <- df_SSP %>% 
-  filter(!is.na(Regressive_Language), !is.na(Regressive_Other)) 
+plt_SSP_AUD_FILT <- plt_SSP_AUD_FILT_scatter + plt_SSP_AUD_FILT_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SSP Auditory Filtering vs. Regression Status")
 
-df_SSP_plt <- df_SSP_plt[,cols]
-colnames(df_SSP_plt) <- cols_new
-
-df_SSP_plt <- df_SSP_plt %>% 
-  mutate(Group = case_when(Language & !Other ~ "Language",
-                           !Language & Other ~ "Other",
-                           Language & Other ~ "Both",
-                           !Language & !Other ~ "None")) %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-df_SSP_plt_summary <- group_summary(x = df_SSP_plt$SSP_AUD_FILTER, 
-                                    groups = df_SSP_plt$Group)
-df_SSP_plt_summary <- df_SSP_plt_summary %>% 
-  as_tibble(rownames = "Group") %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-set.seed(123)
-plt_SSP_scatter <- ggplot(df_SSP_plt, aes(x = Group, y = SSP_AUD_FILTER, alpha = Group)) +
-  geom_jitter(size = 1, width = 0.3, height = 0, col = "grey20") + 
-  geom_crossbar(data = df_SSP_plt_summary, 
-                mapping = aes(x = Group, y = mu, ymin = lower, ymax = upper),
-                alpha = 0.1, col = "red3", fill = "red3") + 
-  # coord_cartesian(ylim = c(20, 130)) + 
-  scale_x_discrete() +
-  scale_y_continuous(breaks = seq(0, 50, by = 5)) + 
-  scale_alpha_manual(values = c(0.4, 0.4, 0.4, 0.4), guide = "none") + 
-  labs(x = "Regression Type",
-       y = "SSP Auditory Filtering Score",
-       title = "Short Sensory Profile (SSP) vs. Regression Status") + 
-  theme_bw() +
-  theme(title = element_text(size = 9, hjust = 0.5))
-
-outfile <- "ssp_aud_filt_scatter.pdf"
+outfile <- "SSP_AUD_FILT.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_SSP_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SSP_AUD_FILT)
+invisible(dev.off())
+
+plt_SSP_AUD_FILT
 ```
 
-```{r}
-# Generate heatmap from group contrasts
-list_SSP_heatmap <- contrasts_heatmap(x = list_SSP$contrasts)
-
-plt_SSP_heatmap <- list_SSP_heatmap$plot +
-  labs(title = "SSP Auditory Filtering vs. Regression Status")
-
-outfile <- "ssp_aud_filt_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_SSP_heatmap)
-dev.off()
-```
 
 ## SSP Visual-Auditory
 
 ```{r}
+#| fig-width: 9 
+
 # Construct data frame for model
-df_SSP_lm <- df_SSP %>% 
+df_SSP_VIS_AUD_lm <- df_SSP %>% 
   select(ID, y = SSP_VIS_AUD, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other) %>% 
+         Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other))
 
-# Evaluate model
-list_SSP <- evaluate_model(x = df_SSP_lm)
-summary(list_SSP$model)
-```
+list_SSP_VIS_AUD <- evaluate_model(x = df_SSP_VIS_AUD_lm)
 
-```{r}
-cols <- c("Regressive_Language", "Regressive_Other")
+list_SSP_VIS_AUD_heatmap <- contrasts_heatmap(x = list_SSP_VIS_AUD$contrasts)
 
-cols_new <- cols %>% 
-  str_remove("Regressive_")  
+plt_SSP_VIS_AUD_heatmap <- list_SSP_VIS_AUD_heatmap$plot 
 
-cols <- c("ID", cols, "SSP_VIS_AUD")
-cols_new <- c("ID", cols_new, "SSP_VIS_AUD")
+plt_SSP_VIS_AUD_scatter <- regression_scatter(model = list_SSP_VIS_AUD, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 30),
+                                     ybreaks = seq(0, 200, by = 5))
 
-plt_lvls <- c("None", "Language", "Other", "Both")
+plt_SSP_VIS_AUD_scatter <- plt_SSP_VIS_AUD_scatter +
+  labs(y = "SSP Visual/Auditory Score")
 
-df_SSP_plt <- df_SSP %>% 
-  filter(!is.na(Regressive_Language), !is.na(Regressive_Other)) 
+plt_SSP_VIS_AUD <- plt_SSP_VIS_AUD_scatter + plt_SSP_VIS_AUD_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SSP Visual/Auditory vs. Regression Status")
 
-df_SSP_plt <- df_SSP_plt[,cols]
-colnames(df_SSP_plt) <- cols_new
-
-df_SSP_plt <- df_SSP_plt %>% 
-  mutate(Group = case_when(Language & !Other ~ "Language",
-                           !Language & Other ~ "Other",
-                           Language & Other ~ "Both",
-                           !Language & !Other ~ "None")) %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-df_SSP_plt_summary <- group_summary(x = df_SSP_plt$SSP_VIS_AUD, 
-                                    groups = df_SSP_plt$Group)
-df_SSP_plt_summary <- df_SSP_plt_summary %>% 
-  as_tibble(rownames = "Group") %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-set.seed(123)
-plt_SSP_scatter <- ggplot(df_SSP_plt, aes(x = Group, y = SSP_VIS_AUD, alpha = Group)) +
-  geom_jitter(size = 1, width = 0.3, height = 0, col = "grey20") + 
-  geom_crossbar(data = df_SSP_plt_summary, 
-                mapping = aes(x = Group, y = mu, ymin = lower, ymax = upper),
-                alpha = 0.1, col = "red3", fill = "red3") + 
-  # coord_cartesian(ylim = c(20, 130)) + 
-  scale_x_discrete() +
-  scale_y_continuous(breaks = seq(0, 50, by = 5)) + 
-  scale_alpha_manual(values = c(0.4, 0.4, 0.4, 0.4), guide = "none") + 
-  labs(x = "Regression Type",
-       y = "SSP Visual Auditory Score",
-       title = "Short Sensory Profile (SSP) vs. Regression Status") + 
-  theme_bw() +
-  theme(title = element_text(size = 9, hjust = 0.5))
-
-outfile <- "ssp_vis_aud_scatter.pdf"
+outfile <- "SSP_VIS_AUD.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_SSP_scatter)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SSP_VIS_AUD)
+invisible(dev.off())
+
+plt_SSP_VIS_AUD
 ```
 
-```{r}
-# Generate heatmap from group contrasts
-list_SSP_heatmap <- contrasts_heatmap(x = list_SSP$contrasts)
 
-plt_SSP_heatmap <- list_SSP_heatmap$plot +
-  labs(title = "SSP Auditory Filtering vs. Regression Status")
+------------------------------------------------------------------------
 
-outfile <- "ssp_aud_filt_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_SSP_heatmap)
-dev.off()
-```
+# Socialization
 
-# Socialization (SRS)
+To evaluate socialization we used the **Social Responsiveness Scale (SRS)**.
 
 ```{r}
 df_SRS <- df_regressive_autism %>%
-  select(ID, contains("Regressive"), SRS_Total) %>% 
-  filter(!is.na(SRS_Total))
+  select(ID, Language, Other, contains("SRS")) %>% 
+  filter(!is.na(SRS_Total)) %>% 
+  filter(!is.na(Language), !is.na(Other))
+
+compute_group_summaries(x = df_SRS, groups = df_regressive_groups)
+```
+
+## SRS Total Score
+
+```{r}
+#| fig-width: 9 
 
 # Construct data frame for model
 df_SRS_lm <- df_SRS %>% 
   select(ID, y = SRS_Total, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other) %>% 
-  filter(!is.na(Language), !is.na(Other))
+         Language, Other) 
 
-# Evaluate model
 list_SRS <- evaluate_model(x = df_SRS_lm)
-summary(list_SRS$model)
-```
 
-```{r}
-cols <- c("Regressive_Language", "Regressive_Other")
-
-cols_new <- cols %>% 
-  str_remove("Regressive_")  
-
-cols <- c("ID", cols, "SRS_Total")
-cols_new <- c("ID", cols_new, "SRS_Total")
-
-plt_lvls <- c("None", "Language", "Other", "Both")
-
-df_SRS_plt <- df_SRS %>% 
-  filter(!is.na(Regressive_Language), !is.na(Regressive_Other)) 
-
-df_SRS_plt <- df_SRS_plt[,cols]
-colnames(df_SRS_plt) <- cols_new
-
-df_SRS_plt <- df_SRS_plt %>% 
-  mutate(Group = case_when(Language & !Other ~ "Language",
-                           !Language & Other ~ "Other",
-                           Language & Other ~ "Both",
-                           !Language & !Other ~ "None")) %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-df_SRS_plt_summary <- group_summary(x = df_SRS_plt$SRS_Total, 
-                                    groups = df_SRS_plt$Group)
-df_SRS_plt_summary <- df_SRS_plt_summary %>% 
-  as_tibble(rownames = "Group") %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-set.seed(123)
-plt_SRS_scatter <- ggplot(df_SRS_plt, aes(x = Group, y = SRS_Total, alpha = Group)) +
-  geom_jitter(size = 1, width = 0.3, height = 0, col = "grey20") + 
-  geom_crossbar(data = df_SRS_plt_summary, 
-                mapping = aes(x = Group, y = mu, ymin = lower, ymax = upper),
-                alpha = 0.1, col = "red3", fill = "red3") + 
-  # coord_cartesian(ylim = c(20, 130)) + 
-  scale_x_discrete() +
-  scale_y_continuous(breaks = seq(0, 200, by = 10)) + 
-  scale_alpha_manual(values = c(0.2, 0.4, 0.4, 0.4), guide = "none") + 
-  labs(x = "Regression Type",
-       y = "SRS Total Score",
-       title = "Social Responsiveness Scale (SRS) vs. Regression Status") + 
-  theme_bw() +
-  theme(title = element_text(size = 9, hjust = 0.5))
-
-outfile <- "srs_total_scatter.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_SRS_scatter)
-dev.off()
-```
-
-```{r}
-# Generate heatmap from group contrasts
 list_SRS_heatmap <- contrasts_heatmap(x = list_SRS$contrasts)
 
-plt_SRS_heatmap <- list_SRS_heatmap$plot +
-  labs(title = "SRS vs. Regression Status")
+plt_SRS_heatmap <- list_SRS_heatmap$plot 
 
-outfile <- "srs_total_heatmap.pdf"
+plt_SRS_scatter <- regression_scatter(model = list_SRS, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ybreaks = seq(0, 200, by = 10))
+
+plt_SRS_scatter <- plt_SRS_scatter +
+  labs(y = "SRS Total Score")
+
+plt_SRS <- plt_SRS_scatter + plt_SRS_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Social Responsiveness Questionnaire (SRS) vs. Regression Status")
+
+outfile <- "SRS.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_SRS_heatmap)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SRS)
+invisible(dev.off())
+
+plt_SRS
 ```
 
-# Language (CCC)
+
+## Custom Total Score
+
+```{r}
+#| fig-width: 9 
+
+df_SRS_custom_lm <- df_SRS %>% 
+  mutate(y = SRS_SocialAware + SRS_SocialCog + SRS_SocialComm + SRS_SocialMotiv) %>% 
+  select(ID, y, Language, Other) %>% 
+  filter(!is.na(y))
+
+list_SRS_custom <- evaluate_model(x = df_SRS_custom_lm)
+
+list_SRS_custom_heatmap <- contrasts_heatmap(x = list_SRS_custom$contrasts)
+
+plt_SRS_custom_heatmap <- list_SRS_custom_heatmap$plot 
+
+plt_SRS_custom_scatter <- regression_scatter(model = list_SRS_custom, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ybreaks = seq(0, 1000, by = 20))
+
+plt_SRS_custom_scatter <- plt_SRS_custom_scatter +
+  labs(y = "SRS Custom Total Score")
+
+plt_SRS_custom <- plt_SRS_custom_scatter + plt_SRS_custom_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Social Responsiveness Questionnaire (SRS) vs. Regression Status")
+
+outfile <- "SRS_custom.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SRS_custom)
+invisible(dev.off())
+
+plt_SRS_custom
+```
+
+------------------------------------------------------------------------
+
+# Language
+
+To evaluate language, we used the **Children's Communication Checklist (CCC)**.
 
 ```{r}
 df_language <- df_regressive_autism %>%
-  select(ID, contains("Regressive"), contains("CCC"), IQ)
+  select(ID, Language, Other, contains("CCC"), IQ)
+
+df_language <- df_language %>% 
+  mutate(Structural_1 = CCC_Speech + CCC_Syntax + CCC_Semantics + CCC_Coherence,
+         Pragmatic_1 = CCC_Inapp_Init + CCC_Context + CCC_NonVerbalComm) %>% 
+  mutate(Structural_2 = CCC_Speech + CCC_Syntax + CCC_Semantics,
+         Pragmatic_2 = CCC_Inapp_Init + CCC_Context + CCC_NonVerbalComm + CCC_Coherence) 
+
+df_language <- df_language %>% 
+  filter(!is.na(Language), !is.na(Other), !is.na(Structural_1))
+
+compute_group_summaries(x = df_language, groups = df_regressive_groups)
 ```
+
+## Structural Language
+
+In version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic. 
+
+```{r}
+#| fig-width: 9 
+
+# Construct data frame for model
+df_lang_v1_struct_lm <- df_language %>% 
+  select(ID, y = Structural_1, 
+         Language, Other) 
+
+list_lang_v1_struct <- evaluate_model(x = df_lang_v1_struct_lm)
+
+list_lang_v1_struct_heatmap <- contrasts_heatmap(x = list_lang_v1_struct$contrasts)
+
+plt_lang_v1_struct_heatmap <- list_lang_v1_struct_heatmap$plot 
+
+plt_lang_v1_struct_scatter <- regression_scatter(model = list_lang_v1_struct, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 60), 
+                                     ybreaks = seq(0, 200, by = 10))
+
+plt_lang_v1_struct_scatter <- plt_lang_v1_struct_scatter +
+  labs(y = "Structural Language Score")
+
+plt_lang_v1_struct <- plt_lang_v1_struct_scatter + plt_lang_v1_struct_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Structural Language (v1) vs. Regression Status")
+
+outfile <- "lang_v1_struct.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_lang_v1_struct)
+invisible(dev.off())
+
+plt_lang_v1_struct
+```
+
+```{r}
+#| fig-width: 9 
+
+# Construct data frame for model
+df_lang_v2_struct_lm <- df_language %>% 
+  select(ID, y = Structural_2, 
+         Language, Other) 
+
+list_lang_v2_struct <- evaluate_model(x = df_lang_v2_struct_lm)
+
+list_lang_v2_struct_heatmap <- contrasts_heatmap(x = list_lang_v2_struct$contrasts)
+
+plt_lang_v2_struct_heatmap <- list_lang_v2_struct_heatmap$plot 
+
+plt_lang_v2_struct_scatter <- regression_scatter(model = list_lang_v2_struct, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 60), 
+                                     ybreaks = seq(0, 200, by = 10))
+
+plt_lang_v2_struct_scatter <- plt_lang_v2_struct_scatter +
+  labs(y = "Structural Language Score")
+
+plt_lang_v2_struct <- plt_lang_v2_struct_scatter + plt_lang_v2_struct_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Structural Language (v2) vs. Regression Status")
+
+outfile <- "lang_v2_struct.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_lang_v2_struct)
+invisible(dev.off())
+
+plt_lang_v2_struct
+```
+
+
+
+
+## Pragmatic Language
+
+In version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic. 
+
+```{r}
+#| fig-width: 9 
+
+# Conprag data frame for model
+df_lang_v1_prag_lm <- df_language %>% 
+  select(ID, y = Pragmatic_1, 
+         Language, Other) 
+
+list_lang_v1_prag <- evaluate_model(x = df_lang_v1_prag_lm)
+
+list_lang_v1_prag_heatmap <- contrasts_heatmap(x = list_lang_v1_prag$contrasts)
+
+plt_lang_v1_prag_heatmap <- list_lang_v1_prag_heatmap$plot 
+
+plt_lang_v1_prag_scatter <- regression_scatter(model = list_lang_v1_prag, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 50), 
+                                     ybreaks = seq(0, 200, by = 10))
+
+plt_lang_v1_prag_scatter <- plt_lang_v1_prag_scatter +
+  labs(y = "Pragmatic Language Score")
+
+plt_lang_v1_prag <- plt_lang_v1_prag_scatter + plt_lang_v1_prag_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Pragmatic Language (v1) vs. Regression Status")
+
+outfile <- "lang_v1_prag.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_lang_v1_prag)
+invisible(dev.off())
+
+plt_lang_v1_prag
+```
+
+```{r}
+#| fig-width: 9 
+
+# Construct data frame for model
+df_lang_v2_prag_lm <- df_language %>% 
+  select(ID, y = Pragmatic_2, 
+         Language, Other) 
+
+list_lang_v2_prag <- evaluate_model(x = df_lang_v2_prag_lm)
+
+list_lang_v2_prag_heatmap <- contrasts_heatmap(x = list_lang_v2_prag$contrasts)
+
+plt_lang_v2_prag_heatmap <- list_lang_v2_prag_heatmap$plot 
+
+plt_lang_v2_prag_scatter <- regression_scatter(model = list_lang_v2_prag, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(0, 50), 
+                                     ybreaks = seq(0, 200, by = 10))
+
+plt_lang_v2_prag_scatter <- plt_lang_v2_prag_scatter +
+  labs(y = "Pragmatic Language Score")
+
+plt_lang_v2_prag <- plt_lang_v2_prag_scatter + plt_lang_v2_prag_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Pragmatic Language (v2) vs. Regression Status")
+
+outfile <- "lang_v2_prag.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_lang_v2_prag)
+invisible(dev.off())
+
+plt_lang_v2_prag
+```
+
 
 ## SIDC
 
 ```{r}
+#| echo: false
+#| eval: false
+
 # Construct data frame for model
 df_SIDC_lm <- df_language %>% 
   select(ID, y = CCC_SIDC, IQ,
@@ -1789,6 +1938,9 @@ summary(list_SIDC$model)
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 cols <- c("Regressive_Language", "Regressive_Other")
 
 cols_new <- cols %>% 
@@ -1845,6 +1997,9 @@ dev.off()
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 # Generate heatmap from group contrasts
 list_SIDC_heatmap <- contrasts_heatmap(x = list_SIDC$contrasts)
 
@@ -1861,6 +2016,9 @@ dev.off()
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
+
 df_SIDC_IQ_lm <- df_SIDC_lm %>% 
   filter(!is.na(IQ))
 
@@ -1868,14 +2026,20 @@ mod <- lm(y ~ Language*Other + IQ, data = df_SIDC_IQ_lm)
 summary(mod)
 ```
 
-How do I do contrasts then? Contrasts at mean IQ, since we're not running an interaction.
 
-# Repetitive behaviours (RBS-R)
+
+------------------------------------------------------------------------
+
+
+# Repetitive behaviours
+
+To evaluate repetitive behaviours, we used the **RBS-R**.
 
 ```{r}
 file <- "data/processed/RBS-R/RBS.csv"
-df_rbs <- read_csv(file)
+df_rbs <- read_csv(file, show_col_types = FALSE)
 ```
+
 
 ## RBS-R original sub-domains
 
@@ -1960,7 +2124,7 @@ invisible(dev.off())
 plt_rbs_rst
 ```
 
-### Ritual Behaviour
+### Ritualistic Behaviour
 
 ```{r fig.width = 9}
 df_rbs_rtt <- df_rbs %>% 
@@ -2039,6 +2203,7 @@ invisible(dev.off())
 
 plt_rbs_sit
 ```
+
 
 ### Sameness Behaviour
 
