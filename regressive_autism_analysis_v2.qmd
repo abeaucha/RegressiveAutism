@@ -262,7 +262,6 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
   mutate(Group = factor(Group, levels = regressive_group_lvls))
 ```
 
-
 # Sample size overview
 
 The total number of participants with ADI regression information is:
@@ -287,8 +286,7 @@ df_regressive_autism %>%
   filter(is.na(Other))
 ```
 
-
---- 
+------------------------------------------------------------------------
 
 # Adaptive function
 
@@ -351,8 +349,7 @@ plt_adaptive
 summary(list_adaptive$model)
 ```
 
-
----
+------------------------------------------------------------------------
 
 # Full-scale IQ
 
@@ -408,8 +405,7 @@ plt_IQ
 summary(list_IQ$model)
 ```
 
-
----
+------------------------------------------------------------------------
 
 # ADOS
 
@@ -444,9 +440,7 @@ df_ADOS_OTS %>%
   count()
 ```
 
-
 3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Moreover 3,373 participants have non-zero ADOS OTS and 394 have values of zero for the OTS.
-
 
 ## ADOS CSS
 
@@ -496,7 +490,6 @@ plt_ADOS_CSS
 summary(list_ADOS_CSS$model)
 ```
 
-
 ## ADOS OTS with zeros excluded
 
 ```{r}
@@ -538,14 +531,11 @@ invisible(dev.off())
 plt_ADOS_OTS
 ```
 
-
 **Linear regression output:**
 
 ```{r}
 summary(list_ADOS_OTS$model)
 ```
-
-
 
 ## Analysis of ADOS OTS zero scores
 
@@ -961,8 +951,7 @@ df_ADOS_zeros %>%
   select(ID, n_pass, n_pass_drop_na)
 ```
 
-
----
+------------------------------------------------------------------------
 
 # ADHD
 
@@ -987,7 +976,6 @@ df_regressive_autism %>%
   mutate(ADHD = ifelse(ADHD, "Yes", "No"))
 ```
 
-
 ```{r}
 df_ADHD <- df_regressive_autism %>% 
   select(ID, Language, Other, ADHD) %>% 
@@ -995,7 +983,6 @@ df_ADHD <- df_regressive_autism %>%
 
 compute_group_summaries(x = df_ADHD, groups = df_regressive_groups)
 ```
-
 
 ```{r fig.width = 9}
 df_ADHD_lr <- df_ADHD %>% 
@@ -1029,13 +1016,11 @@ invisible(dev.off())
 plt_ADHD
 ```
 
-
 **Logistic regression output:**
 
 ```{r}
 summary(list_ADHD$model)
 ```
-
 
 ```{r}
 #| echo: false
@@ -1066,7 +1051,7 @@ df_ADHD_lr %>%
   filter(y)
 ```
 
----
+------------------------------------------------------------------------
 
 # Anxiety
 
@@ -1079,7 +1064,6 @@ df_regressive_autism %>%
   mutate(Anxiety = ifelse(Anxiety, "Yes", "No"))
 ```
 
-
 ```{r}
 df_anxiety <- df_regressive_autism %>% 
   select(ID, Language, Other, Anxiety) %>% 
@@ -1087,7 +1071,6 @@ df_anxiety <- df_regressive_autism %>%
 
 compute_group_summaries(x = df_anxiety, groups = df_regressive_groups)
 ```
-
 
 ```{r fig.width = 9}
 df_anxiety_lr <- df_anxiety %>% 
@@ -1121,13 +1104,11 @@ invisible(dev.off())
 plt_anxiety
 ```
 
-
 **Logistic regression output:**
 
 ```{r}
 summary(list_anxiety$model)
 ```
-
 
 ```{r}
 #| echo: false
@@ -1135,114 +1116,80 @@ summary(list_anxiety$model)
 knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
 ```
 
-
-
-
-
----
+------------------------------------------------------------------------
 
 # Seizures
 
 ```{r}
-nrow(df_regressive_autism)
-```
-
-```{r}
 df_regressive_autism %>% 
+  filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Seizure) %>% 
-  count()
+  count() %>% 
+  ungroup() %>% 
+  mutate(Seizure = ifelse(Seizure, "Yes", "No"))
 ```
 
 ```{r}
 df_seizures <- df_regressive_autism %>% 
-  select(ID, contains("Regressive"), DOB, Seizure, Seizure_Date, IQ) %>% 
-  mutate(Seizure = ifelse(is.na(Seizure), FALSE, Seizure))
+  select(ID, Language, Other, Seizure, Seizure_Date, DOB, ADIR_Age) %>% 
+  filter(!is.na(Seizure), !is.na(Language), !is.na(Other))
 
-df_seizures <- df_seizures %>% 
+compute_group_summaries(x = df_seizures, groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_seizures_lr <- df_seizures %>% 
+  select(ID, y = Seizure, 
+         Language, Other) 
+
+list_seizures <- evaluate_model(x = df_seizures_lr, type = "logistic")
+
+
+list_seizures_heatmap <- contrasts_heatmap(x = list_seizures$contrasts)
+
+plt_seizures_heatmap <- list_seizures_heatmap$plot 
+
+plt_seizures_probs <- regression_probs(model = list_seizures, 
+                                       groups = df_regressive_groups,
+                                       ybreaks = seq(0, 1, by = 0.1),
+                                       ylims = c(0, 1))
+
+plt_seizures <- plt_seizures_probs + plt_seizures_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Seizures vs. Regression Status")
+
+outfile <- "seizures_overall.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_seizures)
+invisible(dev.off())
+
+plt_seizures
+```
+
+```{r}
+df_seizures_age <- df_seizures %>% 
   mutate(Seizure_Date = ifelse(Seizure_Date == "1900-01-01", NA, Seizure_Date)) %>% 
   mutate(Seizure_Date = as.Date(Seizure_Date)) %>% 
   mutate(Seizure_Age = time_length(interval(DOB, Seizure_Date), "years")) %>% 
-  mutate(Seizure_Age = ifelse(is.na(Seizure_Age), Regressive_ADIR_Age, Seizure_Age))# %>%
-  # filter(Seizure_Age > 0)
+  mutate(Seizure_Age = ifelse(is.na(Seizure_Age), ADIR_Age, Seizure_Age)) %>%
+  filter(Seizure_Age > 0)
 
-df_seizures_lr <- df_seizures %>% 
-  select(ID, y = Seizure, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other) %>% 
-  filter(!is.na(Language), !is.na(Other))
-
-list_seizures <- evaluate_model(x = df_seizures_lr, type = "logistic")
-summary(list_seizures$model)
-```
-
-```{r}
-df_seizures %>% 
-  group_by(Seizure) %>% 
-  summarise(N = n(), prop = N/nrow(.),
-            .groups = "drop")
-```
-
-```{r}
-df_seizures_lr %>% 
-  group_by(Language, Other) %>% 
-  mutate(N_per_group = n()) %>% 
-  ungroup() %>% 
-  group_by(Language, Other, y) %>% 
-  mutate(N = n()) %>% 
-  ungroup() %>% 
-  select(-ID) %>% 
-  distinct() %>% 
-  mutate(prop = N/N_per_group) %>% 
-  select(Language, Other, y, N_per_group, N, prop) %>% 
-  arrange(Language, Other, y) %>% 
-  filter(y)
-```
-
-```{r}
-list_seizures_heatmap <- contrasts_heatmap(x = list_seizures$contrasts)
-
-plt_seizures_heatmap <- list_seizures_heatmap$plot +
-  labs(title = "Seizures vs. Regression Status")
-
-outfile <- "seizures_heatmap.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_heatmap)
-dev.off()
-```
-
-```{r}
-plt_lvls <- c("None", "Language", "Other", "Both")
-
-df_seizures_plt <- as_tibble(list_seizures$emmeans)
-
-plt_seizures_probs <- ggplot(df_seizures_plt, aes(x = interaction(Language, Other),
-                                                  y = prob)) +
-  geom_point(size = 3) +
-  geom_pointrange(aes(ymin = asymp.LCL,
-                      ymax = asymp.UCL)) +
-  scale_x_discrete(labels = plt_lvls) + 
-  scale_y_continuous(breaks = seq(0, 1, by = 0.01)) + 
-  labs(x = "Regression Type",
-       y = "Probability of seizures",
-       title = "Seizures vs. Regression Status") +
+ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure)) + 
+  geom_histogram(position = "dodge", binwidth = 2) +
+  labs(x = "Age") + 
+  scale_x_continuous(breaks = seq(0, 50, 5)) + 
+  scale_y_continuous(breaks = seq(0, 100, 10)) + 
+  scale_fill_discrete(labels = c("No", "Yes")) + 
   theme_bw()
-
-outfile <- "seizures_probabilities.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_probs)
-dev.off()
 ```
 
 ## Seizures in three age bins
 
 ```{r}
-df_seizures_binned <- df_seizures %>% 
+df_seizures_binned <- df_seizures_age %>% 
   mutate(AgeBin = case_when(Seizure_Age < 5 ~ "< 5",
                             Seizure_Age >= 5 & Seizure_Age < 12 ~ "5-12",
                             Seizure_Age >= 12 ~ ">= 12"))
@@ -1258,27 +1205,11 @@ df_seizures_binned %>%
   count()
 ```
 
-```{r}
-df_seizures_binned %>% 
-  filter(!is.na(Regressive_Any), Regressive_Any) %>% 
-  group_by(AgeBin, Seizure) %>% 
-  count()
-```
-
-```{r}
-tmp <- df_seizures %>% 
-  filter(!is.na(Regressive_Any)) 
-
-ggplot(tmp, aes(x = Seizure_Age, fill = Regressive_Any)) + 
-  geom_histogram(position = "dodge")
-```
 
 ```{r}
 df_seizures_binned_lr <- df_seizures_binned %>% 
   select(ID, y = Seizure, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other, 
-         AgeBin) %>% 
+         Language, Other, AgeBin) %>% 
   filter(!is.na(Language), !is.na(Other))
 
 list_seizures_binned_inputs <- split(df_seizures_binned_lr, f = df_seizures_binned_lr$AgeBin)
@@ -1309,8 +1240,9 @@ plt_seizures_probs_binned <- ggplot(df_seizures_binned_plt,
   #                 position = position_dodge(width = 0.3)) +
   geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL)) +
   facet_grid(.~AgeLabel) + 
+  coord_cartesian(ylim = c(0, 1)) + 
   scale_x_discrete(labels = plt_lvls) + 
-  scale_y_continuous(breaks = seq(0, 1, by = 0.02)) + 
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1)) + 
   labs(x = "Regression Type",
        y = "Probability of seizures",
        title = "Seizures vs. Regression Status") +
@@ -1370,8 +1302,8 @@ plt_seizures_heatmap_binned <- ggplot(df_seizures_binned_heatmap,
 
 outfile <- "seizures_heatmap_binned_3.pdf"
 outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, ?
-      width = unit(8, "in"),
+pdf(file = outfile, 
+    width = unit(8, "in"),
     height = unit(4, "in"))
 print(plt_seizures_heatmap_binned)
 dev.off()
@@ -2076,7 +2008,6 @@ file <- "data/processed/RBS-R/RBS.csv"
 df_rbs <- read_csv(file)
 ```
 
-
 ## RBS-R original sub-domains
 
 ### Compulsive Behaviour
@@ -2120,7 +2051,6 @@ invisible(dev.off())
 plt_rbs_cpt
 ```
 
-
 ### Restricted Behaviour
 
 ```{r fig.width = 9}
@@ -2160,7 +2090,6 @@ invisible(dev.off())
 
 plt_rbs_rst
 ```
-
 
 ### Ritual Behaviour
 
@@ -2202,7 +2131,6 @@ invisible(dev.off())
 plt_rbs_rtt
 ```
 
-
 ### Self-Injurious Behaviour
 
 ```{r fig.width = 9}
@@ -2242,7 +2170,6 @@ invisible(dev.off())
 
 plt_rbs_sit
 ```
-
 
 ### Sameness Behaviour
 
@@ -2284,7 +2211,6 @@ invisible(dev.off())
 plt_rbs_smt
 ```
 
-
 ### Stereotyped Behaviour
 
 ```{r fig.width = 9}
@@ -2325,5 +2251,88 @@ invisible(dev.off())
 plt_rbs_stt
 ```
 
-## RBS-R factor analysis
+## RBS-R five-factor model
 
+### Ritualistic/Sameness
+
+```{r fig.width = 9}
+df_rbs_rit_smt <- df_rbs %>% 
+  mutate(y = RBSR_RBSRTT + RBSR_RBSSMT) %>% 
+  select(ID, y) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_rit_smt <- evaluate_model(x = df_rbs_rit_smt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_rit_smt_heatmap <- contrasts_heatmap(x = list_rbs_rit_smt$contrasts)
+
+plt_rbs_rit_smt_heatmap <- list_rbs_rit_smt_heatmap$plot
+
+
+plt_rbs_rit_smt_scatter <- regression_scatter(model = list_rbs_rit_smt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_rit_smt_scatter <- plt_rbs_rit_smt_scatter +
+labs(y = "RBS-R Ritualistic/Sameness Behaviour")
+
+plt_rbs_rit_smt <- plt_rbs_rit_smt_scatter + plt_rbs_rit_smt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Ritualistic/Sameness Behaviour vs. Regression Status")
+
+outfile <- "rbs_5_factor_rit_smt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_rit_smt)
+invisible(dev.off())
+
+plt_rbs_rit_smt
+```
+
+## RBS-R four-factor model
+
+### Compulsive/Ritualistic/Sameness
+
+```{r fig.width = 9}
+df_rbs_cpt_rit_smt <- df_rbs %>% 
+  mutate(y = RBSR_RBSCPT + RBSR_RBSRTT + RBSR_RBSSMT) %>% 
+  select(ID, y) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_cpt_rit_smt <- evaluate_model(x = df_rbs_cpt_rit_smt, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_cpt_rit_smt_heatmap <- contrasts_heatmap(x = list_rbs_cpt_rit_smt$contrasts)
+
+plt_rbs_cpt_rit_smt_heatmap <- list_rbs_cpt_rit_smt_heatmap$plot
+
+
+plt_rbs_cpt_rit_smt_scatter <- regression_scatter(model = list_rbs_cpt_rit_smt, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_cpt_rit_smt_scatter <- plt_rbs_cpt_rit_smt_scatter +
+labs(y = "RBS-R Compulsive/Ritualistic/Sameness Behaviour")
+
+plt_rbs_cpt_rit_smt <- plt_rbs_cpt_rit_smt_scatter + plt_rbs_cpt_rit_smt_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Compulsive/Ritualistic/Sameness Behaviour vs. Regression Status") 
+
+outfile <- "rbs_4_factor_cpt_rit_smt.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_cpt_rit_smt)
+invisible(dev.off())
+
+plt_rbs_cpt_rit_smt
+```
