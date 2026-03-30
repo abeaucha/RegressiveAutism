@@ -1309,146 +1309,15 @@ print(plt_seizures_heatmap_binned)
 dev.off()
 ```
 
-## Seizures in two age bins
-
-```{r}
-bin_cutoff <- 5
-bin_lvls <- paste(c("<", ">="), bin_cutoff)
-bin_labels <- paste(c("Below", "Above"), bin_cutoff)
-
-df_seizures_binned <- df_seizures %>% 
-  mutate(AgeBin = case_when(Seizure_Age < bin_cutoff ~ bin_lvls[1],
-                            Seizure_Age >= bin_cutoff ~ bin_lvls[2]))
-
-df_seizures_binned <- df_seizures_binned %>% 
-  filter(!is.na(AgeBin))
-
-df_seizures_binned <- df_seizures_binned %>% 
-  mutate(AgeBin = factor(AgeBin, levels = bin_lvls))
-
-df_seizures_binned %>% 
-  group_by(AgeBin) %>% 
-  count()
-```
-
-```{r}
-df_seizures_binned_lr <- df_seizures_binned %>% 
-  select(ID, y = Seizure, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other, 
-         AgeBin) %>% 
-  filter(!is.na(Language), !is.na(Other))
-
-list_seizures_binned_inputs <- split(df_seizures_binned_lr, f = df_seizures_binned_lr$AgeBin)
-
-list_seizures_binned <- map(list_seizures_binned_inputs, .f = evaluate_model, type = "logistic")
-
-```
-
-```{r}
-df_seizures_binned_plt <- map_dfr(list_seizures_binned, 
-                                  .f = function(x) {as_tibble(x[["emmeans"]])},
-                                  .id = "AgeBin")
-
-df_seizures_binned_plt <- df_seizures_binned_plt %>% 
-  mutate(AgeBin = factor(AgeBin, levels = bin_lvls)) %>% 
-  mutate(AgeLabel = case_when(AgeBin == bin_lvls[1] ~ bin_labels[1],
-                              AgeBin == bin_lvls[2] ~ bin_labels[2]),
-         AgeLabel = factor(AgeLabel, levels = bin_labels))
-
-plt_lvls <- c("None", "Language", "Other", "Both")
-
-plt_seizures_probs_binned <- ggplot(df_seizures_binned_plt, 
-                                    aes(x = interaction(Language, Other),
-                                        y = prob)) + 
-  # geom_point(position = position_dodge(width = 0.2)) +
-  # geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL),
-  #                 position = position_dodge(width = 0.3)) +
-  geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL)) +
-  facet_grid(.~AgeLabel) + 
-  scale_x_discrete(labels = plt_lvls) + 
-  scale_y_continuous(breaks = seq(0, 1, by = 0.02)) + 
-  labs(x = "Regression Type",
-       y = "Probability of seizures",
-       title = "Seizures vs. Regression Status") +
-  theme_bw()
-
-outfile <- "seizures_probabilities_age_binned_2.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(8, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_probs_binned)
-dev.off()
-```
-
-```{r}
-df_seizures_binned_heatmap <- map_dfr(list_seizures_binned,
-                                      .f = function(x) {contrasts_heatmap(x = x[["contrasts"]])[["data"]]}, 
-                                      .id = "AgeBin")
-
-df_seizures_binned_heatmap <- df_seizures_binned_heatmap %>% 
-  mutate(AgeBin = factor(AgeBin, levels = bin_lvls)) %>% 
-  mutate(AgeLabel = case_when(AgeBin == bin_lvls[1] ~ bin_labels[1],
-                              AgeBin == bin_lvls[2] ~ bin_labels[2]),
-         AgeLabel = factor(AgeLabel, levels = bin_labels))
-
-threshold_lwr <- -log10(0.05)
-threshold_upr <- 10
-
-plt_seizures_heatmap_binned <- ggplot(df_seizures_binned_heatmap,
-                                      aes(x = Comparison, y = fct_rev(Reference), fill = NLQ, col = exclude)) + 
-  geom_tile() +
-  facet_grid(.~AgeLabel) +
-  scale_fill_gradientn(
-    colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
-    values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
-    limits  = c(threshold_lwr, threshold_upr),
-    oob     = scales::squish,        # forces NLQ <= thr to thr
-    na.value = "white"
-  ) +
-  scale_colour_manual(values = c("grey50", "white"), guide = "none") + 
-  scale_x_discrete(expand = expansion(), position = "top") +
-  scale_y_discrete(expand = expansion(), position = "right") +
-  labs(x = "Comparison Group",
-       y = "Reference Group",
-       fill = "-log10(q-value)") + 
-  theme(axis.line.x.bottom = element_blank(),
-        axis.line.x.top = element_line(colour = "grey50"),
-        axis.line.y.left   = element_blank(),
-        axis.line.y.right = element_line(colour = "grey50"),
-        legend.position = c(0.02, 0.02),   # bottom-left inside panel
-        legend.justification = c(0, 0),
-        legend.background = element_rect(
-          fill = scales::alpha("white", 0.8),
-          colour = NA
-        ))
-
-outfile <- "seizures_heatmap_binned_2.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile,
-    width = unit(8, "in"),
-    height = unit(4, "in"))
-print(plt_seizures_heatmap_binned)
-dev.off()
-```
 
 ## Controlling for age
 
 ```{r}
-df_seizures_lr_age <- df_seizures %>%
+df_seizures_lr_age <- df_seizures_age %>%
   select(ID, y = Seizure, 
-         Language = Regressive_Language, 
-         Other = Regressive_Other, Age = Seizure_Age) %>% 
+         Language, Other, Age = Seizure_Age) %>% 
   filter(!is.na(Language), !is.na(Other), !is.na(Age)) 
 
-ggplot(df_seizures_lr_age, aes(x = Age)) + 
-  geom_histogram(fill = "grey70", col = "black") +
-  scale_x_continuous(breaks = seq(0, 50, by = 5)) + 
-  theme_bw()
-```
-
-```{r}
 df_age_quantiles <- tibble(probs = seq(0, 1, by = 0.01))
 df_age_quantiles$Age <- quantile(x = df_seizures_lr_age$Age, probs = df_age_quantiles$probs)
 
@@ -1466,13 +1335,13 @@ df_seizures_lr_age <- df_seizures_lr_age %>%
   filter(Age <= 25) %>% 
   mutate(Age_Centered = Age - mean(Age))
 
-mod <- glm(y ~ Age_Centered*Language*Other,
+# mod <- glm(y ~ Age_Centered + Language*Other,
+#            data = df_seizures_lr_age,
+#            family = "binomial")
+
+mod <- glm(y ~ ns(Age_Centered, df = 3) + Language*Other,
            data = df_seizures_lr_age,
            family = "binomial")
-
-# mod <- glm(y ~ ns(Age_Centered, df = 3)*Language*Other, 
-#            data = df_seizures_lr_age, 
-#            family = "binomial")
 
 summary(mod)
 ```
