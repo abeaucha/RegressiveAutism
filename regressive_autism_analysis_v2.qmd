@@ -262,9 +262,10 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
   mutate(Group = factor(Group, levels = regressive_group_lvls))
 ```
 
+
 # Sample overview
 
-The total number of participants with ADI regression information is:
+The set of participants with ADI regression information breaks down as follows:
 
 ```{r}
 compute_group_summaries(x = df_regressive_autism, groups = df_regressive_groups)
@@ -353,6 +354,8 @@ summary(list_adaptive$model)
 
 # Full-scale IQ
 
+The subset of participants with IQ scores:
+
 ```{r}
 # Filter for participants with adaptive function scores
 df_IQ <- df_regressive_autism %>% 
@@ -440,7 +443,8 @@ df_ADOS_OTS %>%
   count()
 ```
 
-3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Moreover 3,373 participants have non-zero ADOS OTS and 394 have values of zero for the OTS.
+3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Moreover, among the participants with OTS scores, 3,373 have non-zero values and 394 have zero values.
+
 
 ## ADOS CSS
 
@@ -967,6 +971,8 @@ df_ADOS_zeros %>%
 # tibble(`ADI-R` = n_ADIR, ADHD = n_ADHD, Intersection = n_intersect)
 ```
 
+There are 1,304 participants with ADHD information:
+
 ```{r}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
@@ -975,6 +981,8 @@ df_regressive_autism %>%
   ungroup() %>% 
   mutate(ADHD = ifelse(ADHD, "Yes", "No"))
 ```
+
+Broken down by regression group:
 
 ```{r}
 df_ADHD <- df_regressive_autism %>% 
@@ -1055,6 +1063,8 @@ df_ADHD_lr %>%
 
 # Anxiety
 
+There are 1,080 participants with anxiety information:
+
 ```{r}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
@@ -1063,6 +1073,8 @@ df_regressive_autism %>%
   ungroup() %>% 
   mutate(Anxiety = ifelse(Anxiety, "Yes", "No"))
 ```
+
+Broken down by regression group: 
 
 ```{r}
 df_anxiety <- df_regressive_autism %>% 
@@ -1110,15 +1122,15 @@ plt_anxiety
 summary(list_anxiety$model)
 ```
 
-
 ------------------------------------------------------------------------
 
 # Depression
 
-
 ------------------------------------------------------------------------
 
 # Seizures
+
+There are 454 participants with seizure information:
 
 ```{r}
 df_regressive_autism %>% 
@@ -1128,6 +1140,8 @@ df_regressive_autism %>%
   ungroup() %>% 
   mutate(Seizure = ifelse(Seizure, "Yes", "No"))
 ```
+
+Broken down by regression group:
 
 ```{r}
 df_seizures <- df_regressive_autism %>% 
@@ -1169,9 +1183,9 @@ invisible(dev.off())
 plt_seizures
 ```
 
-
 ## Seizures in three age bins
 
+The distributions of ages among participants with seizure information:
 
 ```{r fig.width = 9}
 df_seizures_age <- df_seizures %>% 
@@ -1189,6 +1203,8 @@ ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure)) +
   scale_fill_discrete(labels = c("No", "Yes")) + 
   theme_bw()
 ```
+
+If we split the seizure ages into three bins, the numbers are as follows:
 
 ```{r}
 df_seizures_binned <- df_seizures_age %>% 
@@ -1210,6 +1226,7 @@ df_seizures_binned %>%
   select(`Age Bin`, n)
 ```
 
+The association between seizures and regression status in each of the three bins:
 
 ```{r}
 df_seizures_binned_lr <- df_seizures_binned %>% 
@@ -1309,8 +1326,6 @@ invisible(dev.off())
 
 plt_seizures_binned
 ```
-
-
 
 ## Controlling for age
 
@@ -1494,14 +1509,11 @@ df_seizures_lr_IQ %>%
   distinct()
 ```
 
-
 ------------------------------------------------------------------------
-
 
 # Sensory processing
 
-To evaluate sensory processing we used the **Short Sensory Profile (SSP)**.
-
+To evaluate sensory processing we used the **Short Sensory Profile (SSP)**. The subset of participants with SSP scores breaks down as follows:
 
 ```{r}
 df_SSP <- df_regressive_autism %>%
@@ -1552,8 +1564,6 @@ invisible(dev.off())
 plt_SSP_TOT
 ```
 
-
-
 ## SSP Auditory Filtering
 
 ```{r}
@@ -1594,7 +1604,6 @@ invisible(dev.off())
 
 plt_SSP_AUD_FILT
 ```
-
 
 ## SSP Visual-Auditory
 
@@ -1637,12 +1646,11 @@ invisible(dev.off())
 plt_SSP_VIS_AUD
 ```
 
-
 ------------------------------------------------------------------------
 
 # Socialization
 
-To evaluate socialization we used the **Social Responsiveness Scale (SRS)**.
+To evaluate socialization we used the **Social Responsiveness Scale (SRS)**. The subset of participants with SRS scores breaks down as follows:
 
 ```{r}
 df_SRS <- df_regressive_autism %>%
@@ -1692,8 +1700,10 @@ invisible(dev.off())
 plt_SRS
 ```
 
-
 ## Custom Total Score
+
+The custom total score is the sum of Social Awareness, Social Cognition, Social Communication and Social Motivation, excluding repetitive behaviours. 
+
 
 ```{r}
 #| fig-width: 9 
@@ -1736,7 +1746,7 @@ plt_SRS_custom
 
 # Language
 
-To evaluate language, we used the **Children's Communication Checklist (CCC)**.
+To evaluate language, we used the **Children's Communication Checklist (CCC)**. The subset of participants with CCC scores breaks down as follows:
 
 ```{r}
 df_language <- df_regressive_autism %>%
@@ -1756,7 +1766,8 @@ compute_group_summaries(x = df_language, groups = df_regressive_groups)
 
 ## Structural Language
 
-In version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic. 
+The structural language score is the sum of Speech, Syntax and Semantics. 
+Additionally, in version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic.
 
 ```{r}
 #| fig-width: 9 
@@ -1834,12 +1845,9 @@ invisible(dev.off())
 plt_lang_v2_struct
 ```
 
-
-
-
 ## Pragmatic Language
 
-In version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic. 
+In version 1, Coherence is counted towards Structural. In version 2, Coherence is counted towards Pragmatic.
 
 ```{r}
 #| fig-width: 9 
@@ -1916,7 +1924,6 @@ invisible(dev.off())
 
 plt_lang_v2_prag
 ```
-
 
 ## SIDC
 
@@ -2026,20 +2033,27 @@ mod <- lm(y ~ Language*Other + IQ, data = df_SIDC_IQ_lm)
 summary(mod)
 ```
 
-
-
 ------------------------------------------------------------------------
-
 
 # Repetitive behaviours
 
-To evaluate repetitive behaviours, we used the **RBS-R**.
+To evaluate repetitive behaviours, we used the **RBS-R**. The subset of participants with RBS-R scores breaks down as follows:
 
 ```{r}
 file <- "data/processed/RBS-R/RBS.csv"
 df_rbs <- read_csv(file, show_col_types = FALSE)
-```
 
+df_rbs %>% 
+  select(ID, y = RBSR_RBSCPT) %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
 
 ## RBS-R original sub-domains
 
@@ -2204,7 +2218,6 @@ invisible(dev.off())
 plt_rbs_sit
 ```
 
-
 ### Sameness Behaviour
 
 ```{r fig.width = 9}
@@ -2287,7 +2300,8 @@ plt_rbs_stt
 
 ## RBS-R five-factor model
 
-### Ritualistic/Sameness
+In the five-factor model, the Ritualistic and Sameness sub-domains are summed together. The remaining sub-domains are left as is. 
+
 
 ```{r fig.width = 9}
 df_rbs_rit_smt <- df_rbs %>% 
@@ -2330,7 +2344,7 @@ plt_rbs_rit_smt
 
 ## RBS-R four-factor model
 
-### Compulsive/Ritualistic/Sameness
+In the five-factor model, the Compulsive, Ritualistic and Sameness sub-domains are summed together. The remaining sub-domains are left as is. 
 
 ```{r fig.width = 9}
 df_rbs_cpt_rit_smt <- df_rbs %>% 
