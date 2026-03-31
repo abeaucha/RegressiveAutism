@@ -2,8 +2,9 @@
 
 setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
 
-domains <- c("demographics", "ADIR", "ADOS", "ADHD", "anxiety",
-             "seizures", "SSP", "SRS", "language", "RBS")
+domains <- c("demographics", "ADIR", "ADOS", 
+             "ADHD", "anxiety", "depression", "seizures", "sleep", "prematurity",
+             "SSP", "SRS", "language", "RBS")
 srcfiles <- paste0("process_", domains, "_data.R")
 for (srcfile in srcfiles) {
   message(paste("Executing", srcfile, "..."))

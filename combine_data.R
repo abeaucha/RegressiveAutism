@@ -87,12 +87,36 @@ df_anxiety <- read_csv(file_anxiety, show_col_types = FALSE) %>%
   select(ID, Anxiety = Anxiety_PASS)
 
 
+# Import depression scores -----------------------------------------------------
+
+file_depression <- "depression.csv"
+file_depression <- file.path(data_dir_proc, "Depression", file_depression)
+df_depression <- read_csv(file_depression, show_col_types = FALSE) %>% 
+  select(ID, Depression = Depression_PASS)
+
+
 # Import seizures scores ------------------------------------------------------
 
 file_seizures <- "seizures.csv"
 file_seizures <- file.path(data_dir_proc, "Seizures", file_seizures)
 df_seizures <- read_csv(file_seizures, show_col_types = FALSE) %>% 
   select(ID, Seizure = Seizure_PASS, Seizure_Date)
+
+
+# Import sleep scores ---------------------------------------------------------
+
+file_sleep <- "sleep.csv"
+file_sleep <- file.path(data_dir_proc, "Sleep", file_sleep)
+df_sleep <- read_csv(file_sleep, show_col_types = FALSE) %>% 
+  select(ID, Sleep = Sleep_PASS)
+
+
+# Import prematurity scores ---------------------------------------------------
+
+file_prematurity <- "prematurity.csv"
+file_prematurity <- file.path(data_dir_proc, "Prematurity", file_prematurity)
+df_prematurity <- read_csv(file_prematurity, show_col_types = FALSE) %>% 
+  select(ID, Prematurity = Prematurity_PASS)
 
 
 # Import SSP data -------------------------------------------------------------
@@ -144,7 +168,10 @@ df_adir <- df_adir %>%
   left_join(df_ADOS, by = "ID") %>% 
   left_join(df_ADHD, by = "ID") %>% 
   left_join(df_anxiety, by = "ID") %>% 
+  left_join(df_depression, by = "ID") %>% 
   left_join(df_seizures, by = "ID") %>% 
+  left_join(df_sleep, by = "ID") %>% 
+  left_join(df_prematurity, by = "ID") %>% 
   left_join(df_ssp, by = "ID") %>% 
   left_join(df_srs, by = "ID") %>%  
   left_join(df_ccc, by = "ID")
