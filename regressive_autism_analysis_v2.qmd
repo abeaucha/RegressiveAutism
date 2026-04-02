@@ -13,6 +13,7 @@ format:
     code-copy: true
     df-print: kable
     echo: false
+    embed-resources: true
 editor: visual
 lightbox: auto
 ---
@@ -1124,7 +1125,6 @@ summary(list_anxiety$model)
 
 # Depression
 
-
 There are 832 participants with depression information:
 
 ```{r}
@@ -1136,7 +1136,6 @@ df_regressive_autism %>%
   mutate(Depression = ifelse(Depression, "Yes", "No"))
 ```
 
-
 Broken down by regression group:
 
 ```{r}
@@ -1146,7 +1145,6 @@ df_depression <- df_regressive_autism %>%
 
 compute_group_summaries(x = df_depression, groups = df_regressive_groups)
 ```
-
 
 ```{r fig.width = 9}
 df_depression_lr <- df_depression %>% 
@@ -1195,7 +1193,6 @@ df_regressive_autism %>%
   mutate(Sleep = ifelse(Sleep, "Yes", "No"))
 ```
 
-
 Broken down by regression group:
 
 ```{r}
@@ -1205,7 +1202,6 @@ df_sleep <- df_regressive_autism %>%
 
 compute_group_summaries(x = df_sleep, groups = df_regressive_groups)
 ```
-
 
 ```{r fig.width = 9}
 df_sleep_lr <- df_sleep %>% 
@@ -1238,7 +1234,6 @@ invisible(dev.off())
 
 plt_sleep
 ```
-
 
 ------------------------------------------------------------------------
 
@@ -1638,7 +1633,6 @@ df_regressive_autism %>%
   mutate(Prematurity = ifelse(Prematurity, "Yes", "No"))
 ```
 
-
 Broken down by regression group:
 
 ```{r}
@@ -1648,7 +1642,6 @@ df_prematurity <- df_regressive_autism %>%
 
 compute_group_summaries(x = df_prematurity, groups = df_regressive_groups)
 ```
-
 
 ```{r fig.width = 9}
 df_prematurity_lr <- df_prematurity %>% 
@@ -1681,7 +1674,6 @@ invisible(dev.off())
 
 plt_prematurity
 ```
-
 
 ------------------------------------------------------------------------
 
