@@ -9,60 +9,64 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(readxl))
 
 
+# Functions -------------------------------------------------------------------
+
+
 # Main ------------------------------------------------------------------------
 
 # Paths to anxiety directories
 input_dir <- "data/raw/Seizures/"
 output_dir <- "data/processed/Seizures/"
 
-file <- "co_occurring_condition_characteristics___details_2025-12-10T18_56_00.287411Z.xlsx"
-file <- file.path(input_dir, file)
-df_seizures_init <- read_excel(file) %>% 
-  filter(condition == "Seizures")
-
-codes <- sort(unique(df_seizures_init$code))
-codes
-
-df_measures <- tibble(code = codes,
-                      threshold = c(2, 0, 1, 1, 1, 1, 1, 1, 1, 1),
-                      comparison = c("=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">="),
-                      colname = c("ADIR", "AGRE_AGE", "AGRE_FEBRILE", "AGRE_INTRACT", "AGRE_NUM",
-                                  "AGRE_OTHER", "AGRE_MEDS", "AGRE_TYPE", "ASDEPILEP", "ASDSEIZ")) %>% 
+# Data frame containing files and threshold info
+df_files <- tibble(file = c("ADI-R 85 ADIWPS.xlsx",
+                            "AGRE_AFFCHILD1_AGE_OF_SEIZURE_ONSET_YEARS.xlsx",
+                            "AGRE_AFFCHILD1_INTRACTABILITY_OF_SEIZURES.xlsx",
+                            "AGRE_AFFCHILD1_NUMBER_OF_SEIZURES.xlsx",
+                            "AGRE_AFFCHILD1_OTHER_SEIZURES.xlsx",
+                            "AGRE_AFFCHILD1_SEIZR_REQ_TREATMENT_WITH_MEDS.xlsx",
+                            "AGRE_AFFCHILD1_SEIZURE_TYPE.xlsx",
+                            "CLINICALINFO_ASDEPILEP.xlsx",
+                            "CLINICALINFO_ASDSEIZ (FS excluded) (Feb 5, 2026 9-45-09 AM).xlsx"),
+                   threshold = c(2, 1, 1, 1, 1, 1, 1, 1, 1),
+                   comparison = c("=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">="),
+                   colname = c("ADIR", "AGRE_AGE", "AGRE_INTRACT", "AGRE_NUM", "AGRE_OTHER",
+                               "AGRE_MEDS", "AGRE_TYPE", "ASDEPILEP", "ASDSEIZ")) %>% 
   mutate(colname = paste0(colname, "_PASS"))
 
+for (i in 1:nrow(df_files)) {
 
-for (i in 1:nrow(df_measures)) {
-  
-  df <- df_seizures_init %>% 
-    filter(code == codes[i]) %>% 
-    select(ID = indexid, score = raw_value, testdate) %>% 
-    mutate(score = as.numeric(score))
-  
-  if (df_measures[[i, "comparison"]] == "=") {
+  file <- df_files[[i, "file"]]  
+  file <- file.path(input_dir, file)
+  df <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value) %>% 
+    filter(!is.na(ID), !is.na(score)) %>% 
+    group_by(ID) %>% 
+    mutate(score_max = max(score, na.rm = TRUE)) %>% 
+    ungroup() 
+    
+  if (df_files[[i, "comparison"]] == "=") {
     df <- df %>% 
-      mutate(PASS = score == df_measures[[i, "threshold"]]) 
-  } else if (df_measures[[i, "comparison"]] == ">=") {
+      mutate(PASS = score_max == df_files[[i, "threshold"]]) 
+  } else if (df_files[[i, "comparison"]] == ">=") {
     df <- df %>% 
-      mutate(PASS = score >= df_measures[[i, "threshold"]]) 
+      mutate(PASS = score_max >= df_files[[i, "threshold"]]) 
   } else {
     stop()
   }
-  
 
+  df <- df %>%     
+    select(ID, PASS) %>% 
+    distinct()
   
-  df <- df %>% 
-    group_by(ID) %>% 
-    summarise(PASS = any(PASS)) %>% 
-    ungroup() 
-  
-  colnames(df)[2] <- df_measures[[i, "colname"]]
+  colnames(df)[2] <- df_files[[i, "colname"]]
   
   if (i == 1) {
     df_seizures <- df
   } else {
     df_seizures <- full_join(df_seizures, df, by = "ID")
   }
-  
+    
 }
 
 # Calculate combined seizures score
@@ -75,74 +79,26 @@ df_seizures_combined <- df_seizures %>%
 df_seizures <- df_seizures %>% 
   left_join(df_seizures_combined, by = "ID")
 
+# Import seizure dates data
+file <- "mssng sorted epilepsy.xlsx"
+file <- file.path(input_dir, file)
+df_dates <- read_excel(file, sheet = "MSSNG co-occuring sorted Epilep") %>% 
+  select(ID = indexid, Seizure_Date = testdate) %>% 
+  mutate(Seizure_Date = as.Date(Seizure_Date))
 
-## Processing dates -----------------------------------------------------------
-
-# Extract initial dates information
-df_seizures_dates_init <- df_seizures_init %>%
-  select(ID = indexid, Seizure_Date = testdate, code) %>% 
-  mutate(Seizure_Date = as.Date(Seizure_Date)) %>% 
-  mutate(Seizure_Date = ifelse(Seizure_Date < "1970-01-01", NA, Seizure_Date)) %>% 
-  mutate(Seizure_Date = as.Date(Seizure_Date)) %>% 
-  filter(!is.na(Seizure_Date)) %>% 
-  distinct() 
-
-# Identify participants with multiple dates
-ids_multiple_dates <- df_seizures_dates_init %>% 
-  select(ID, Seizure_Date) %>% 
-  distinct() %>% 
-  group_by(ID) %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(ID)
-
-# For participants with unique dates, use those
-df_seizures_dates_unique <- df_seizures_dates_init %>% 
-  filter(!(ID %in% ids_multiple_dates)) %>% 
-  select(ID, Seizure_Date) %>% 
-  distinct() %>% 
-  arrange(ID) 
-
-# Convert seizure data to long format and merge code information
-df_seizures_long <- df_seizures %>% 
-  select(-Seizure_PASS) %>% 
-  pivot_longer(cols = -ID, names_to = "colname", values_to = "PASS") %>% 
-  left_join(df_measures %>% select(colname, code), by = "colname")
-
-# Filter for participants with multiple dates
-df_seizures_dates_multiple <- df_seizures_dates_init %>% 
-  filter(ID %in% ids_multiple_dates) %>% 
-  left_join(df_seizures_long, by = c("ID", "code")) %>% 
-  arrange(ID)
-
-# If participants pass on a measure, use the earliest date for passing measures
-df_seizures_dates_multiple_pass <- df_seizures_dates_multiple %>%
-  filter(PASS) %>% 
-  group_by(ID) %>% 
-  filter(Seizure_Date == min(Seizure_Date)) %>%
-  select(ID, Seizure_Date) %>% 
-    distinct()
-
-# For remaining participants who don't pass anything, use the earliest date
-df_seizures_dates_multiple_rest <- df_seizures_dates_multiple %>% 
-  anti_join(df_seizures_dates_multiple_pass, by = "ID") %>% 
-  group_by(ID) %>% 
-  filter(Seizure_Date == min(Seizure_Date)) %>%
-  select(ID, Seizure_Date) %>% 
-  distinct()
-
-# Combine all dates information
-df_seizures_dates <- bind_rows(df_seizures_dates_unique,
-                               df_seizures_dates_multiple_pass,
-                               df_seizures_dates_multiple_rest)
-
-# Join dates information to main data
 df_seizures <- df_seizures %>% 
-  left_join(df_seizures_dates, by = "ID")
+  left_join(df_dates, by = "ID")
 
 # Export processed data
 outfile <- "seizures.csv"
 outfile <- file.path(output_dir, outfile)
 write_csv(df_seizures, file = outfile)
 
+
+# Note that false here doesn't mean they don't have ADHD. 
+
+# No participants have all variables, so can't define a proper negative case
+# mat_ADHD <- as.matrix(df_ADHD)
+# mat_ADHD_na <- is.na(mat_ADHD)
+# which(rowSums(mat_ADHD_na) == 0)
 
