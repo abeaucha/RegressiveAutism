@@ -83,3 +83,35 @@ outfile <- "depression.csv"
 outfile <- file.path(output_dir, outfile)
 write_csv(df_depression_combined, file = outfile)
 
+
+# Continuous scores
+
+file <- "CBCL618_CB681TS 6-18y old Affective Problems.xlsx"
+file <- file.path(input_dir, file)
+df_depression_cbcl_618 <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value)  
+
+file <- "CBCL1_CB1TS 1-5yold.xlsx"
+file <- file.path(input_dir, file)
+df_depression_cbcl_15 <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) %>% 
+  anti_join(df_depression_cbcl_618, by = "ID")
+
+df_depression_cbcl <- bind_rows(df_depression_cbcl_618, df_depression_cbcl_15) %>% 
+  rename(CBCL_AP_TS = score)
+
+# Export processed data
+outfile <- "depression_cbcl.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_depression_cbcl, file = outfile)
+
+
+file <- "RCADSP_D_TSCORE.xlsx"
+file <- file.path(input_dir, file)
+df_depression_rcads <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) 
+
+# Export processed data
+outfile <- "depression_rcads.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_depression_rcads, file = outfile)

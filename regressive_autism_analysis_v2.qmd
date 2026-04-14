@@ -1121,6 +1121,188 @@ plt_anxiety
 summary(list_anxiety$model)
 ```
 
+## Continuous anxiety scores
+
+### CBCL Anxious Problems
+
+```{r}
+file <- "data/processed/Anxiety/anxiety_cbcl.csv"
+df_anxiety_cbcl <- read_csv(file, show_col_types = FALSE)
+
+df_anxiety_cbcl %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(CBCL_AP_TS), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_anxiety_cbcl_lm <- df_anxiety_cbcl %>% 
+  select(ID, y = CBCL_AP_TS) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_anxiety_cbcl <- evaluate_model(x = df_anxiety_cbcl_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_anxiety_cbcl_heatmap <- contrasts_heatmap(x = list_anxiety_cbcl$contrasts)
+
+plt_anxiety_cbcl_heatmap <- list_anxiety_cbcl_heatmap$plot
+
+
+plt_anxiety_cbcl_scatter <- regression_scatter(model = list_anxiety_cbcl, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(50, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_anxiety_cbcl_scatter <- plt_anxiety_cbcl_scatter +
+labs(y = "CBCL Anxious Problems T-score")
+
+plt_anxiety_cbcl <- plt_anxiety_cbcl_scatter + plt_anxiety_cbcl_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CBCL Anxious Problems vs. Regression Status")
+
+outfile <- "anxiety_cbcl.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_anxiety_cbcl)
+invisible(dev.off())
+
+plt_anxiety_cbcl
+```
+
+
+### RCADS Generalized Anxiety
+
+```{r}
+file <- "data/processed/Anxiety/anxiety_rcads.csv"
+df_anxiety_rcads <- read_csv(file, show_col_types = FALSE)
+
+df_anxiety_rcads %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(score), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_anxiety_rcads_lm <- df_anxiety_rcads %>% 
+  select(ID, y = score) %>% 
+  group_by(ID) %>% 
+  summarise(y = mean(y)) %>% 
+  ungroup() %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_anxiety_rcads <- evaluate_model(x = df_anxiety_rcads_lm, type = "linear")
+
+# Generate heatmap from group contrasts
+list_anxiety_rcads_heatmap <- contrasts_heatmap(x = list_anxiety_rcads$contrasts)
+
+plt_anxiety_rcads_heatmap <- list_anxiety_rcads_heatmap$plot
+
+
+plt_anxiety_rcads_scatter <- regression_scatter(model = list_anxiety_rcads, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          # ylims = c(50, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_anxiety_rcads_scatter <- plt_anxiety_rcads_scatter +
+labs(y = "RCADS GA T-score")
+
+plt_anxiety_rcads <- plt_anxiety_rcads_scatter + plt_anxiety_rcads_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RCADS Generalized Anxiety vs. Regression Status")
+
+outfile <- "anxiety_rcads.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_anxiety_rcads)
+invisible(dev.off())
+
+plt_anxiety_rcads
+```
+
+
+### SPENCEP Total Score
+
+
+```{r}
+file <- "data/processed/Anxiety/anxiety_spencep.csv"
+df_anxiety_spencep <- read_csv(file, show_col_types = FALSE)
+
+df_anxiety_spencep %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(score), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_anxiety_spencep_lm <- df_anxiety_spencep %>% 
+  select(ID, y = score) %>% 
+  group_by(ID) %>% 
+  summarise(y = mean(y)) %>% 
+  ungroup() %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_anxiety_spencep <- evaluate_model(x = df_anxiety_spencep_lm, type = "linear")
+
+# Generate heatmap from group contrasts
+list_anxiety_spencep_heatmap <- contrasts_heatmap(x = list_anxiety_spencep$contrasts)
+
+plt_anxiety_spencep_heatmap <- list_anxiety_spencep_heatmap$plot
+
+
+plt_anxiety_spencep_scatter <- regression_scatter(model = list_anxiety_spencep, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          # ylims = c(50, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_anxiety_spencep_scatter <- plt_anxiety_spencep_scatter +
+labs(y = "SPENCE Total Score")
+
+plt_anxiety_spencep <- plt_anxiety_spencep_scatter + plt_anxiety_spencep_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SPENCE Total Score vs. Regression Status")
+
+outfile <- "anxiety_spencep.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_anxiety_spencep)
+invisible(dev.off())
+
+plt_anxiety_spencep
+```
+
 ------------------------------------------------------------------------
 
 # Depression
@@ -1177,6 +1359,129 @@ invisible(dev.off())
 
 plt_depression
 ```
+
+
+## Continuous depression scores
+
+### CBCL Affective Problems
+
+```{r}
+file <- "data/processed/Depression/depression_cbcl.csv"
+df_depression_cbcl <- read_csv(file, show_col_types = FALSE)
+
+df_depression_cbcl %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(CBCL_AP_TS), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_depression_cbcl_lm <- df_depression_cbcl %>% 
+  select(ID, y = CBCL_AP_TS) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_depression_cbcl <- evaluate_model(x = df_depression_cbcl_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_depression_cbcl_heatmap <- contrasts_heatmap(x = list_depression_cbcl$contrasts)
+
+plt_depression_cbcl_heatmap <- list_depression_cbcl_heatmap$plot
+
+
+plt_depression_cbcl_scatter <- regression_scatter(model = list_depression_cbcl, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(50, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_depression_cbcl_scatter <- plt_depression_cbcl_scatter +
+labs(y = "CBCL Anxious Problems T-score")
+
+plt_depression_cbcl <- plt_depression_cbcl_scatter + plt_depression_cbcl_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CBCL Anxious Problems vs. Regression Status")
+
+outfile <- "depression_cbcl.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_depression_cbcl)
+invisible(dev.off())
+
+plt_depression_cbcl
+```
+
+### RCADS Depression
+
+```{r}
+file <- "data/processed/Depression/depression_rcads.csv"
+df_depression_rcads <- read_csv(file, show_col_types = FALSE)
+
+df_depression_rcads %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(score), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_depression_rcads_lm <- df_depression_rcads %>% 
+  select(ID, y = score) %>% 
+  group_by(ID) %>% 
+  summarise(y = mean(y)) %>% 
+  ungroup() %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_depression_rcads <- evaluate_model(x = df_depression_rcads_lm, type = "linear")
+
+# Generate heatmap from group contrasts
+list_depression_rcads_heatmap <- contrasts_heatmap(x = list_depression_rcads$contrasts)
+
+plt_depression_rcads_heatmap <- list_depression_rcads_heatmap$plot
+
+
+plt_depression_rcads_scatter <- regression_scatter(model = list_depression_rcads, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          # ylims = c(50, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_depression_rcads_scatter <- plt_depression_rcads_scatter +
+labs(y = "RCADS D T-score")
+
+plt_depression_rcads <- plt_depression_rcads_scatter + plt_depression_rcads_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RCADS Depression vs. Regression Status")
+
+outfile <- "depression_rcads.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_depression_rcads)
+invisible(dev.off())
+
+plt_depression_rcads
+```
+
+
+
 
 ------------------------------------------------------------------------
 
@@ -2548,9 +2853,7 @@ invisible(dev.off())
 plt_rbs_cpt_rit_smt
 ```
 
-
 # CBCL Externalizing Problems
-
 
 ```{r}
 file <- "data/processed/Externalizing/externalizing.csv"
@@ -2606,7 +2909,6 @@ invisible(dev.off())
 
 plt_cbcl_ep
 ```
-
 
 # CBCL Internalizing Problems
 

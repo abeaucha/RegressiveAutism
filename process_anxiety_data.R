@@ -89,10 +89,47 @@ outfile <- file.path(output_dir, outfile)
 write_csv(df_anxiety_combined, file = outfile)
 
 
-# Note that false here doesn't mean they don't have ADHD. 
 
-# No participants have all variables, so can't define a proper negative case
-# mat_ADHD <- as.matrix(df_ADHD)
-# mat_ADHD_na <- is.na(mat_ADHD)
-# which(rowSums(mat_ADHD_na) == 0)
+# Continuous scores
 
+file <- "CBCL618_CB682TS; Tscores.xlsx"
+file <- file.path(input_dir, file)
+df_anxiety_cbcl_618 <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value)  
+
+file <- "CBCL1_CB2TS.xlsx"
+file <- file.path(input_dir, file)
+df_anxiety_cbcl_15 <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) %>% 
+  anti_join(df_anxiety_cbcl_618, by = "ID")
+
+df_anxiety_cbcl <- bind_rows(df_anxiety_cbcl_618, df_anxiety_cbcl_15) %>% 
+  rename(CBCL_AP_TS = score)
+
+# Export processed data
+outfile <- "anxiety_cbcl.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_anxiety_cbcl, file = outfile)
+
+
+file <- "RCADSP_GA_TSCORE.xlsx"
+file <- file.path(input_dir, file)
+df_anxiety_rcads <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) 
+
+# Export processed data
+outfile <- "anxiety_rcads.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_anxiety_rcads, file = outfile)
+
+
+
+file <- "SPENCEP_SPENCE_TOT_SCORE; SCAS (Jan 29, 2026 12-16-51 PM).xlsx"
+file <- file.path(input_dir, file)
+df_anxiety_spencep <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) 
+
+# Export processed data
+outfile <- "anxiety_spencep.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_anxiety_spencep, file = outfile)
