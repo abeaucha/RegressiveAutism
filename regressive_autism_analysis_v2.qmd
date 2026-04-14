@@ -289,6 +289,22 @@ df_regressive_autism %>%
 
 ------------------------------------------------------------------------
 
+# Age of regression onset
+
+```{r}
+file <- "data/processed/Onset/age_of_onset.csv"
+df_onset <- read_csv(file, show_col_types = FALSE)
+
+age_onset_mean <- df_onset %>% 
+  pull(Age_Onset) %>% 
+  mean()
+
+message("Mean age of onset: ", round(age_onset_mean, 1), " months")
+```
+
+
+------------------------------------------------------------------------
+
 # Adaptive function
 
 The subset of participants with adaptive function scores:
@@ -1180,7 +1196,6 @@ invisible(dev.off())
 plt_anxiety_cbcl
 ```
 
-
 ### RCADS Generalized Anxiety
 
 ```{r}
@@ -1241,9 +1256,7 @@ invisible(dev.off())
 plt_anxiety_rcads
 ```
 
-
 ### SPENCEP Total Score
-
 
 ```{r}
 file <- "data/processed/Anxiety/anxiety_spencep.csv"
@@ -1359,7 +1372,6 @@ invisible(dev.off())
 
 plt_depression
 ```
-
 
 ## Continuous depression scores
 
@@ -1479,9 +1491,6 @@ invisible(dev.off())
 
 plt_depression_rcads
 ```
-
-
-
 
 ------------------------------------------------------------------------
 
