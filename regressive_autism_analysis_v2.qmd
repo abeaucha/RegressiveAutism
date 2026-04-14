@@ -1239,7 +1239,7 @@ plt_sleep
 
 # Seizures
 
-There are 454 participants with seizure information:
+There are 4,160 participants with seizure information:
 
 ```{r}
 df_regressive_autism %>% 
@@ -1274,8 +1274,8 @@ plt_seizures_heatmap <- list_seizures_heatmap$plot
 
 plt_seizures_probs <- regression_probs(model = list_seizures, 
                                        groups = df_regressive_groups,
-                                       ybreaks = seq(0, 1, by = 0.1),
-                                       ylims = c(0, 1))
+                                       ybreaks = seq(0, 1, by = 0.01),
+                                       ylims = c(0, 0.12))
 
 plt_seizures <- plt_seizures_probs + plt_seizures_heatmap +
   plot_layout(widths = c(0.7, 0.3)) +
@@ -1304,11 +1304,11 @@ df_seizures_age <- df_seizures %>%
   mutate(Seizure_Age = ifelse(is.na(Seizure_Age), ADIR_Age, Seizure_Age)) %>%
   filter(Seizure_Age > 0)
 
-ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure)) + 
+ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure, y = after_stat(density))) + 
   geom_histogram(position = "dodge", binwidth = 2) +
   labs(x = "Age") + 
   scale_x_continuous(breaks = seq(0, 50, 5)) + 
-  scale_y_continuous(breaks = seq(0, 100, 10)) + 
+  # scale_y_continuous(breaks = seq(0, 100, 10)) + 
   scale_fill_discrete(labels = c("No", "Yes")) + 
   theme_bw()
 ```
@@ -1371,7 +1371,7 @@ plt_seizures_probs_binned <- ggplot(df_seizures_binned_plt,
   #                 position = position_dodge(width = 0.3)) +
   geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL)) +
   facet_grid(.~AgeLabel) + 
-  coord_cartesian(ylim = c(0, 1)) + 
+  coord_cartesian(ylim = c(0, 0.3)) + 
   scale_x_discrete(labels = plt_lvls) + 
   scale_y_continuous(breaks = seq(0, 1, by = 0.1)) + 
   labs(x = "Regression Type",
@@ -2546,4 +2546,121 @@ print(plt_rbs_cpt_rit_smt)
 invisible(dev.off())
 
 plt_rbs_cpt_rit_smt
+```
+
+
+# CBCL Externalizing Problems
+
+
+```{r}
+file <- "data/processed/Externalizing/externalizing.csv"
+df_cbcl_ep <- read_csv(file, show_col_types = FALSE)
+
+df_cbcl_ep %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(CBCL_EP_TS), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_cbcl_ep_lm <- df_cbcl_ep %>% 
+  select(ID, y = CBCL_EP_TS) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_cbcl_ep <- evaluate_model(x = df_cbcl_ep_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_cbcl_ep_heatmap <- contrasts_heatmap(x = list_cbcl_ep$contrasts)
+
+plt_cbcl_ep_heatmap <- list_cbcl_ep_heatmap$plot
+
+
+plt_cbcl_ep_scatter <- regression_scatter(model = list_cbcl_ep, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(30, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_cbcl_ep_scatter <- plt_cbcl_ep_scatter +
+labs(y = "CBCL Externalizing Problems T-score")
+
+plt_cbcl_ep <- plt_cbcl_ep_scatter + plt_cbcl_ep_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CBCL Externalizing Problems vs. Regression Status")
+
+outfile <- "cbcl_ep.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_cbcl_ep)
+invisible(dev.off())
+
+plt_cbcl_ep
+```
+
+
+# CBCL Internalizing Problems
+
+```{r}
+file <- "data/processed/Internalizing/internalizing.csv"
+df_cbcl_ip <- read_csv(file, show_col_types = FALSE)
+
+df_cbcl_ip %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(CBCL_IP_TS), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_cbcl_ip_lm <- df_cbcl_ip %>% 
+  select(ID, y = CBCL_IP_TS) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_cbcl_ip <- evaluate_model(x = df_cbcl_ip_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_cbcl_ip_heatmap <- contrasts_heatmap(x = list_cbcl_ip$contrasts)
+
+plt_cbcl_ip_heatmap <- list_cbcl_ip_heatmap$plot
+
+
+plt_cbcl_ip_scatter <- regression_scatter(model = list_cbcl_ip, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(30, 90),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_cbcl_ip_scatter <- plt_cbcl_ip_scatter +
+labs(y = "CBCL Internalizing Problems T-score")
+
+plt_cbcl_ip <- plt_cbcl_ip_scatter + plt_cbcl_ip_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CBCL Internalizing Problems vs. Regression Status")
+
+outfile <- "cbcl_ip.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"), 
+    height = unit(4.5, "in"))
+print(plt_cbcl_ip)
+invisible(dev.off())
+
+plt_cbcl_ip
 ```
