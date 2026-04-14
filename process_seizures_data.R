@@ -1,4 +1,4 @@
-# process_anxiety_data.R
+# process_seizures_data.R
 
 
 setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
@@ -19,7 +19,7 @@ input_dir <- "data/raw/Seizures/"
 output_dir <- "data/processed/Seizures/"
 
 # Data frame containing files and threshold info
-df_files <- tibble(file = c("ADI-R 85 ADIWPS.xlsx",
+df_files <- tibble(file = c("ADIWPS-ADI85.xlsx",
                             "AGRE_AFFCHILD1_AGE_OF_SEIZURE_ONSET_YEARS.xlsx",
                             "AGRE_AFFCHILD1_INTRACTABILITY_OF_SEIZURES.xlsx",
                             "AGRE_AFFCHILD1_NUMBER_OF_SEIZURES.xlsx",
@@ -93,12 +93,3 @@ df_seizures <- df_seizures %>%
 outfile <- "seizures.csv"
 outfile <- file.path(output_dir, outfile)
 write_csv(df_seizures, file = outfile)
-
-
-# Note that false here doesn't mean they don't have ADHD. 
-
-# No participants have all variables, so can't define a proper negative case
-# mat_ADHD <- as.matrix(df_ADHD)
-# mat_ADHD_na <- is.na(mat_ADHD)
-# which(rowSums(mat_ADHD_na) == 0)
-
