@@ -2416,7 +2416,63 @@ model <- lm(SRS_Total ~ Language*Other + IQ, data = df_SRS_IQ)
 summary(model)
 ```
 
+
 ## SCQ Total Score
+
+```{r}
+file <- "data/raw/SCQ/SCQ_SCQTOT Total score.xlsx"
+df_scq <- read_excel(file)
+
+df_scq %>% 
+  select(ID = indexid, y = numeric_value) %>% 
+    inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r fig.width = 9}
+df_scq_lm <- df_scq %>% 
+  select(ID = indexid, y = numeric_value) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_scq <- evaluate_model(x = df_scq_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_scq_heatmap <- contrasts_heatmap(x = list_scq$contrasts)
+
+plt_scq_heatmap <- list_scq_heatmap$plot
+
+
+plt_scq_scatter <- regression_scatter(model = list_scq, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_scq_scatter <- plt_scq_scatter +
+labs(y = "SCQ Total Score")
+
+plt_scq <- plt_scq_scatter + plt_scq_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SCQ vs. Regression Status")
+
+outfile <- "scq.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_scq)
+invisible(dev.off())
+
+plt_scq
+```
+
 
 ------------------------------------------------------------------------
 
