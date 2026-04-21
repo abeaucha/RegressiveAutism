@@ -302,7 +302,6 @@ age_onset_mean <- df_onset %>%
 message("Mean age of onset: ", round(age_onset_mean, 1), " months")
 ```
 
-
 ------------------------------------------------------------------------
 
 # Adaptive function
@@ -449,17 +448,19 @@ df_ADOS_n <- left_join(rename(df_ADOS_OTS_n, OTS = n),
 df_ADOS_n
 ```
 
-```{r}
-#| echo: false
-#| eval: false
+3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Among the participants with OTS scores, some have zero values:
 
+```{r}
 df_ADOS_OTS %>% 
   mutate(ADOS_zero = ADOS_OTS == 0) %>% 
   group_by(ADOS_zero) %>% 
-  count()
+  count() %>% 
+  ungroup() %>% 
+  mutate(`ADOS Scores` = ifelse(ADOS_zero, "OTS = 0", "OTS > 0")) %>% 
+  select(`ADOS Scores`, n)
 ```
 
-3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Moreover, among the participants with OTS scores, 3,373 have non-zero values and 394 have zero values.
+3,373 participants have non-zero OTS scores and 394 have zero scores.
 
 ## ADOS CSS
 
@@ -773,7 +774,6 @@ tmp_IQ %>%
   count()
 ```
 
-Only 14 people with 0 on ADOS and IQ scores.
 
 ```{r}
 #| echo: false
@@ -785,7 +785,6 @@ tmp_IQ %>%
   arrange(desc(IQ))
 ```
 
-The scores that do exist are low.
 
 ### Autism diagnosis by ADI-R sub-domain scores
 
@@ -1739,7 +1738,7 @@ plt_seizures_heatmap_binned <- ggplot(df_seizures_binned_heatmap,
 
 plt_seizures_binned <- plt_seizures_probs_binned / plt_seizures_heatmap_binned
 
-outfile <- "seizures_age_binned.pdf"
+outfile <- "seizures_age_binned_3.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
     width = unit(10, "in"),
@@ -1749,6 +1748,130 @@ invisible(dev.off())
 
 plt_seizures_binned
 ```
+
+
+## Seizures in two age bins
+
+If we split the seizure ages into two bins, the numbers are as follows:
+
+```{r}
+df_seizures_binned <- df_seizures_age %>% 
+  mutate(AgeBin = case_when(Seizure_Age < 5 ~ "< 5",
+                            Seizure_Age >= 5 ~ ">= 5"))
+
+df_seizures_binned <- df_seizures_binned %>% 
+  filter(!is.na(AgeBin))
+
+df_seizures_binned <- df_seizures_binned %>% 
+  mutate(AgeBin = factor(AgeBin, levels = c("< 5", ">= 5")))
+
+df_seizures_binned %>% 
+  group_by(AgeBin) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(`Age Bin` = c("Under 5", "Over 5")) %>% 
+  select(`Age Bin`, n)
+```
+
+The association between seizures and regression status in each of the two bins:
+
+```{r}
+df_seizures_binned_lr <- df_seizures_binned %>% 
+  select(ID, y = Seizure, 
+         Language, Other, AgeBin) %>% 
+  filter(!is.na(Language), !is.na(Other))
+
+list_seizures_binned_inputs <- split(df_seizures_binned_lr, f = df_seizures_binned_lr$AgeBin)
+
+list_seizures_binned <- map(list_seizures_binned_inputs, .f = evaluate_model, type = "logistic")
+
+```
+
+```{r fig.width = 9}
+df_seizures_binned_plt <- map_dfr(list_seizures_binned, 
+                                  .f = function(x) {as_tibble(x[["emmeans"]])},
+                                  .id = "AgeBin")
+
+df_seizures_binned_plt <- df_seizures_binned_plt %>% 
+  mutate(AgeBin = factor(AgeBin, levels = c("< 5", ">= 5"))) %>% 
+  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Under 5",
+                              AgeBin == ">= 5" ~ "Over 5"),
+         AgeLabel = factor(AgeLabel, levels = c("Under 5", "Over 5")))
+
+plt_lvls <- c("None", "Language", "Other", "Both")
+
+plt_seizures_probs_binned <- ggplot(df_seizures_binned_plt, 
+                                    aes(x = interaction(Language, Other),
+                                        y = prob)) + 
+  # geom_point(position = position_dodge(width = 0.2)) +
+  # geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+  #                 position = position_dodge(width = 0.3)) +
+  geom_pointrange(aes(ymin = asymp.LCL, ymax = asymp.UCL)) +
+  facet_grid(.~AgeLabel) + 
+  coord_cartesian(ylim = c(0, 0.3)) + 
+  scale_x_discrete(labels = plt_lvls) + 
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1)) + 
+  labs(x = "Regression Type",
+       y = "Probability of seizures") +
+  theme_bw()
+
+
+df_seizures_binned_heatmap <- map_dfr(list_seizures_binned,
+                                      .f = function(x) {contrasts_heatmap(x = x[["contrasts"]])[["data"]]}, 
+                                      .id = "AgeBin")
+
+df_seizures_binned_heatmap <- df_seizures_binned_heatmap %>% 
+  mutate(AgeBin = factor(AgeBin, levels = c("< 5", ">= 5"))) %>% 
+  mutate(AgeLabel = case_when(AgeBin == "< 5" ~ "Under 5",
+                              AgeBin == ">= 5" ~ "Over 5"),
+         AgeLabel = factor(AgeLabel, levels = c("Under 5", "Over 5")))
+
+threshold_lwr <- -log10(0.05)
+threshold_upr <- 10
+
+plt_seizures_heatmap_binned <- ggplot(df_seizures_binned_heatmap,
+                                      aes(x = Comparison, y = fct_rev(Reference), fill = NLQ, col = exclude)) + 
+  geom_tile() +
+  facet_grid(.~AgeLabel) +
+  scale_fill_gradientn(
+    colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+    values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+    limits  = c(threshold_lwr, threshold_upr),
+    oob     = scales::squish,        # forces NLQ <= thr to thr
+    na.value = "white"
+  ) +
+  scale_colour_manual(values = c("grey50", "white"), guide = "none") + 
+  scale_x_discrete(expand = expansion(), position = "top") +
+  scale_y_discrete(expand = expansion(), position = "right") +
+  labs(x = "Comparison Group",
+       y = "Reference Group",
+       fill = "-log10(q-value)") + 
+  theme(axis.line.x.bottom = element_blank(),
+        axis.line.x.top = element_line(colour = "grey50"),
+        axis.line.y.left   = element_blank(),
+        axis.line.y.right = element_line(colour = "grey50"),
+        legend.position = "bottom")
+        # legend.position = c(0.02, 0.02),   # bottom-left inside panel
+        # legend.justification = c(0, 0),
+        # legend.background = element_rect(
+        #   fill = scales::alpha("white", 0.8),
+        #   colour = NA
+        # ))
+
+
+plt_seizures_binned <- plt_seizures_probs_binned / plt_seizures_heatmap_binned
+
+outfile <- "seizures_age_binned_2.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(6, "in"))
+print(plt_seizures_binned)
+invisible(dev.off())
+
+plt_seizures_binned
+```
+
 
 ## Controlling for age
 
@@ -2221,6 +2344,23 @@ invisible(dev.off())
 plt_SRS_custom
 ```
 
+## Controlling for IQ
+
+```{r}
+df_SRS_IQ <- df_regressive_autism %>%
+  select(ID, Language, Other, contains("SRS"), IQ) %>% 
+  filter(!is.na(SRS_Total), !is.na(IQ), 
+         !is.na(Language), !is.na(Other))
+
+compute_group_summaries(x = df_SRS_IQ, groups = df_regressive_groups)
+```
+
+```{r}
+model <- lm(SRS_Total ~ Language*Other + IQ, data = df_SRS_IQ)
+summary(model)
+```
+
+
 ------------------------------------------------------------------------
 
 # Language
@@ -2406,110 +2546,46 @@ plt_lang_v2_prag
 ## SIDC
 
 ```{r}
-#| echo: false
-#| eval: false
+#| fig-width: 9 
 
 # Construct data frame for model
 df_SIDC_lm <- df_language %>% 
   select(ID, y = CCC_SIDC, IQ,
-         Language = Regressive_Language, 
-         Other = Regressive_Other) %>% 
+         Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   filter(!is.na(y))
 
 # Evaluate model
 list_SIDC <- evaluate_model(x = df_SIDC_lm)
-summary(list_SIDC$model)
-```
 
-```{r}
-#| echo: false
-#| eval: false
-
-cols <- c("Regressive_Language", "Regressive_Other")
-
-cols_new <- cols %>% 
-  str_remove("Regressive_")  
-
-cols <- c("ID", cols, "CCC_SIDC")
-cols_new <- c("ID", cols_new, "SIDC")
-
-plt_lvls <- c("None", "Language", "Other", "Both")
-
-df_SIDC_plt <- df_language %>% 
-  filter(!is.na(Regressive_Language), !is.na(Regressive_Other)) %>% 
-  filter(!is.na(CCC_SIDC))
-
-df_SIDC_plt <- df_SIDC_plt[,cols]
-colnames(df_SIDC_plt) <- cols_new
-
-df_SIDC_plt <- df_SIDC_plt %>% 
-  mutate(Group = case_when(Language & !Other ~ "Language",
-                           !Language & Other ~ "Other",
-                           Language & Other ~ "Both",
-                           !Language & !Other ~ "None")) %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-df_SIDC_plt_summary <- group_summary(x = df_SIDC_plt$SIDC, 
-                                     groups = df_SIDC_plt$Group)
-df_SIDC_plt_summary <- df_SIDC_plt_summary %>% 
-  as_tibble(rownames = "Group") %>% 
-  mutate(Group = factor(Group, levels = plt_lvls))
-
-set.seed(123)
-plt_SIDC_scatter <- ggplot(df_SIDC_plt, aes(x = Group, y = SIDC, alpha = Group)) +
-  geom_jitter(size = 1, width = 0.3, height = 0, col = "grey20") + 
-  geom_crossbar(data = df_SIDC_plt_summary, 
-                mapping = aes(x = Group, y = mu, ymin = lower, ymax = upper),
-                alpha = 0.1, col = "red3", fill = "red3") + 
-  # coord_cartesian(ylim = c(20, 130)) + 
-  scale_x_discrete() +
-  scale_y_continuous(breaks = seq(-200, 200, by = 5)) +
-  scale_alpha_manual(values = c(0.2, 0.4, 0.4, 0.4), guide = "none") + 
-  labs(x = "Regression Type",
-       y = "Social Interaction Deviance Composite",
-       title = "Social Interaction Deviance Composite (SIDC) vs. Regression Status") + 
-  theme_bw() +
-  theme(title = element_text(size = 9, hjust = 0.5))
-
-outfile <- "language_SIDC_scatter.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"),
-    height = unit(4, "in"))
-print(plt_SIDC_scatter)
-dev.off()
-```
-
-```{r}
-#| echo: false
-#| eval: false
-
-# Generate heatmap from group contrasts
 list_SIDC_heatmap <- contrasts_heatmap(x = list_SIDC$contrasts)
 
-plt_SIDC_heatmap <- list_SIDC_heatmap$plot +
-  labs(title = "SIDC vs. Regression Status")
+plt_SIDC_heatmap <- list_SIDC_heatmap$plot 
 
-outfile <- "language_SIDC_heatmap.pdf"
+plt_SIDC_scatter <- regression_scatter(model = list_SIDC, 
+                                     groups = df_regressive_groups,
+                                     point_alpha_values = c(0.5, 0.5, 0.5, 0.5),
+                                     ylims = c(-35, 35),
+                                     ybreaks = seq(-200, 200, by = 10))
+
+plt_SIDC_scatter <- plt_SIDC_scatter +
+  labs(y = "SIDC Score")
+
+plt_SIDC <- plt_SIDC_scatter + plt_SIDC_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "SIDC vs. Regression Status")
+
+outfile <- "lang_SIDC.pdf"
 outfile <- file.path(output_dir, outfile)
 pdf(file = outfile, 
-    width = unit(4, "in"),
-    height = unit(4, "in"))
-print(plt_SIDC_heatmap)
-dev.off()
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_SIDC)
+invisible(dev.off())
+
+plt_SIDC
 ```
 
-```{r}
-#| echo: false
-#| eval: false
-
-df_SIDC_IQ_lm <- df_SIDC_lm %>% 
-  filter(!is.na(IQ))
-
-mod <- lm(y ~ Language*Other + IQ, data = df_SIDC_IQ_lm)
-summary(mod)
-```
 
 ------------------------------------------------------------------------
 
