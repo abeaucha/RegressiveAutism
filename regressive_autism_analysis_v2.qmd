@@ -109,7 +109,7 @@ evaluate_model <- function(x, type = "linear") {
     separate(contrast, into = c("Comparison", "Reference"), sep = "_vs_") %>% 
     mutate(q.value = p.adjust(p.value, method = "fdr"))
   
-  return(list(model = model, emmeans = emm, contrasts = df_contrasts))
+  return(list(model = model, emmeans = emm, contrasts = df_contrasts, type = type))
   
 }
 
@@ -306,6 +306,8 @@ message("Mean age of onset: ", round(age_onset_mean, 1), " months")
 
 # Adaptive function
 
+## Composite Score
+
 The subset of participants with adaptive function scores:
 
 ```{r}
@@ -364,6 +366,60 @@ plt_adaptive
 ```{r}
 summary(list_adaptive$model)
 ```
+
+## Social Adaptive Function
+
+```{r}
+# Filter for participants with adaptive function scores
+df_adaptive_soc <- df_regressive_autism %>% 
+  select(ID, Language, Other, SocialAdaptiveScore) %>% 
+  filter(!is.na(SocialAdaptiveScore))
+
+# Construct data frame for model
+df_adaptive_soc_lm <- df_adaptive_soc %>% 
+  select(ID, y = SocialAdaptiveScore, 
+         Language, Other) %>% 
+  filter(!is.na(Language), !is.na(Other))
+
+compute_group_summaries(x = df_adaptive_soc_lm, groups = df_regressive_groups)
+```
+
+```{r, fig.width=9}
+#| label: social-adaptive-func-heatmap
+
+# Evaluate model
+list_adaptive_soc <- evaluate_model(x = df_adaptive_soc_lm)
+
+# Generate heatmap from group contrasts
+list_adaptive_soc_heatmap <- contrasts_heatmap(x = list_adaptive_soc$contrasts)
+
+plt_adaptive_soc_heatmap <- list_adaptive_soc_heatmap$plot
+
+
+plt_adaptive_soc_scatter <- regression_scatter(model = list_adaptive_soc, 
+                                           groups = df_regressive_groups,
+                                           point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                           ylims = c(20, 130), 
+                                           ybreaks = seq(0, 200, by = 10))
+
+plt_adaptive_soc_scatter <- plt_adaptive_soc_scatter +
+  labs(y = "Social Adaptive Function Score")
+
+plt_adaptive_soc <- plt_adaptive_soc_scatter + plt_adaptive_soc_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Social Adaptive Function vs. Regression Status")
+
+outfile <- "social_adaptive_function.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_adaptive_soc)
+invisible(dev.off())
+
+plt_adaptive_soc
+```
+
 
 ------------------------------------------------------------------------
 
@@ -2303,7 +2359,7 @@ invisible(dev.off())
 plt_SRS
 ```
 
-## Custom Total Score
+## SRS Custom Total Score
 
 The custom total score is the sum of Social Awareness, Social Cognition, Social Communication and Social Motivation, excluding repetitive behaviours.
 
@@ -2360,6 +2416,7 @@ model <- lm(SRS_Total ~ Language*Other + IQ, data = df_SRS_IQ)
 summary(model)
 ```
 
+## SCQ Total Score
 
 ------------------------------------------------------------------------
 
@@ -3051,3 +3108,247 @@ invisible(dev.off())
 
 plt_cbcl_ip
 ```
+
+
+# Correcting for multiple comparisons
+
+```{r}
+list_to_correct <- list("Adaptive Function Composite" = list_adaptive,
+                        "Social Adaptive Function" = list_adaptive_soc,
+                        "Full-scale IQ" = list_IQ,
+                        "ADOS CSS" = list_ADOS_CSS,
+                        "ADOS OTS" = list_ADOS_OTS,
+                        "ADHD" = list_ADHD,
+                        "Anxiety" = list_anxiety,
+                        "Depression" = list_depression,
+                        "Sleep" = list_sleep,
+                        "Seizures" = list_seizures,
+                        "Prematurity" = list_prematurity,
+                        "SSP" = list_SSP_TOT,
+                        "SRS" = list_SRS,
+                        "Pragmatic Language" = list_lang_v1_prag,
+                        "Structural Language" = list_lang_v1_struct,
+                        "SIDC" = list_SIDC,
+                        "RBS STT" = list_rbs_stt,
+                        "RBS SMT" = list_rbs_smt,
+                        "RBS SIT" = list_rbs_sit,
+                        "RBS RTT" = list_rbs_rtt,
+                        "RBS RST" = list_rbs_rst,
+                        "RBS CPT" = list_rbs_cpt,
+                        "CBCL Internalizing" = list_cbcl_ip,
+                        "CBCL Externalizing" = list_cbcl_ep)
+
+list_corrected <- vector(mode = "list", length = length(list_to_correct))
+names(list_corrected) <- names(list_to_correct)
+for (i in 1:length(list_corrected)) {
+  
+  x <- list_to_correct[[i]]$contrasts #%>% 
+  type <- list_to_correct[[i]]$type
+  
+  if (type %in% c("linear", "mixed-effects")) {
+    x <- x %>% 
+      select(-q.value) %>% 
+      rename(ratio = t.ratio)
+  } else if (type == "logistic") {
+    x <- x %>% 
+      select(-null, -q.value) %>% 
+      rename(estimate = odds.ratio, ratio = z.ratio) 
+  }
+  
+  x$variable <- names(list_corrected)[i]
+  
+  list_corrected[[i]] <- x
+}
+
+df_corrected <- bind_rows(list_corrected)
+
+df_corrected <- df_corrected %>% 
+  unite(col = "Label", Comparison, Reference, sep = " vs. ", remove = FALSE) %>% 
+  mutate(Comparison = factor(Comparison, levels = c(regressive_group_lvls, "Any")),
+         Reference = factor(Reference, levels = c(regressive_group_lvls, "Any")),
+         variable = factor(variable, levels = names(list_corrected)))
+```
+
+
+## All group comparisons
+
+```{r}
+threshold_lwr = -log10(0.05)
+threshold_upr = 10
+
+comparison_lvls <- df_corrected %>% 
+  select(Label, Comparison, Reference) %>% 
+  distinct() %>% 
+  arrange(Reference, Comparison) %>% 
+  pull(Label)
+
+df_corrected_1 <- df_corrected %>% 
+  filter(Label %in% comparison_lvls) %>% 
+  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
+  mutate(q.value = p.adjust(p.value, method = "fdr"),
+         NLQ = -log10(q.value)) %>% 
+  select(Label, variable, q.value, NLQ)
+
+plt_results_1 <- ggplot(df_corrected_1, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
+  geom_tile() +
+      scale_fill_gradientn(
+      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+      limits  = c(threshold_lwr, threshold_upr),
+      oob     = scales::squish,        # forces NLQ <= thr to thr
+      na.value = "white"
+    ) +
+  scale_x_discrete(expand = expansion()) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "Comparison",
+       y = NULL,
+       fill = "-log10(q-value)") + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
+
+outfile <- "results_all_1.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(7, "in"), 
+    height = unit(5, "in"))
+print(plt_results_1)
+invisible(dev.off())
+
+plt_results_1
+```
+
+## Excluding "Other regression"
+
+```{r}
+comparison_lvls <- df_corrected %>% 
+  select(Label, Comparison, Reference) %>% 
+  distinct() %>%
+  filter(Comparison != "Other", Reference != "Other") %>% 
+  arrange(Reference, Comparison) %>% 
+  pull(Label)
+
+df_corrected_2 <- df_corrected %>% 
+  filter(Label %in% comparison_lvls) %>% 
+  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
+  mutate(q.value = p.adjust(p.value, method = "fdr"),
+         NLQ = -log10(q.value)) %>% 
+  select(Label, variable, q.value, NLQ)
+
+plt_results_2 <- ggplot(df_corrected_2, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
+  geom_tile() +
+      scale_fill_gradientn(
+      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+      limits  = c(threshold_lwr, threshold_upr),
+      oob     = scales::squish,        # forces NLQ <= thr to thr
+      na.value = "white"
+    ) +
+  scale_x_discrete(expand = expansion()) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "Comparison",
+       y = NULL,
+       fill = "-log10(q-value)") + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
+
+outfile <- "results_all_2.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(6, "in"), 
+    height = unit(5, "in"))
+print(plt_results_2)
+invisible(dev.off())
+
+plt_results_2
+```
+
+
+## Only comparing to no regression
+
+```{r}
+comparison_lvls <- df_corrected %>% 
+  select(Label, Comparison, Reference) %>% 
+  distinct() %>% 
+  filter(Reference == "None") %>% 
+  arrange(Reference, Comparison) %>% 
+  pull(Label)
+
+df_corrected_3 <- df_corrected %>% 
+  filter(Label %in% comparison_lvls) %>% 
+  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
+  mutate(q.value = p.adjust(p.value, method = "fdr"),
+         NLQ = -log10(q.value)) %>% 
+  select(Label, variable, q.value, NLQ)
+
+plt_results_3 <- ggplot(df_corrected_3, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
+  geom_tile() +
+      scale_fill_gradientn(
+      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+      limits  = c(threshold_lwr, threshold_upr),
+      oob     = scales::squish,        # forces NLQ <= thr to thr
+      na.value = "white"
+    ) +
+  scale_x_discrete(expand = expansion()) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "Comparison",
+       y = NULL,
+       fill = "-log10(q-value)") + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
+
+outfile <- "results_all_3.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(6, "in"), 
+    height = unit(5, "in"))
+print(plt_results_3)
+invisible(dev.off())
+
+plt_results_3
+```
+
+
+```{r}
+comparison_lvls <- df_corrected %>% 
+  select(Label, Comparison, Reference) %>% 
+  distinct() %>% 
+  filter(Reference == "None", Comparison != "Other") %>% 
+  arrange(Reference, Comparison) %>% 
+  pull(Label)
+
+df_corrected_4 <- df_corrected %>% 
+  filter(Label %in% comparison_lvls) %>% 
+  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
+  mutate(q.value = p.adjust(p.value, method = "fdr"),
+         NLQ = -log10(q.value)) %>% 
+  select(Label, variable, q.value, NLQ)
+
+plt_results_4 <- ggplot(df_corrected_4, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
+  geom_tile() +
+      scale_fill_gradientn(
+      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+      limits  = c(threshold_lwr, threshold_upr),
+      oob     = scales::squish,        # forces NLQ <= thr to thr
+      na.value = "white"
+    ) +
+  scale_x_discrete(expand = expansion()) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "Comparison",
+       y = NULL,
+       fill = "-log10(q-value)") + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
+
+outfile <- "results_all_4.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(6, "in"), 
+    height = unit(5, "in"))
+print(plt_results_4)
+invisible(dev.off())
+
+plt_results_4
+```
+
