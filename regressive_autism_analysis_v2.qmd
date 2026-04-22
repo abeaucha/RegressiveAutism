@@ -38,8 +38,15 @@ suppressPackageStartupMessages(library(viridis))
 #| echo: false
 
 
+#' Compute regression group summaries
+#'
+#' @param x (tibble) Data frame with regression status information
+#' @param groups (tibble) Data frame containing group labels
+#'
+#' @returns (tibble) Tibble with group summary data
 compute_group_summaries <- function(x, groups) {
   
+  # Compute group numbers
   x_summary <- x %>% 
     select(ID, Language, Other) %>% 
     left_join(groups, by = c("Language", "Other")) %>% 
@@ -47,9 +54,10 @@ compute_group_summaries <- function(x, groups) {
     count() %>% 
     ungroup()
   
-  x_tot <- tibble(Group = "Total",
-                  n = sum(x_summary$n))
+  # Compute total sample size
+  x_tot <- tibble(Group = "Total", n = sum(x_summary$n))
   
+  # Combine group numbers with total
   x_summary <- bind_rows(x_summary, x_tot)
   
   return(x_summary)
@@ -64,19 +72,24 @@ compute_group_summaries <- function(x, groups) {
 #' @returns (list) 
 evaluate_model <- function(x, type = "linear") {
   
+  # Confusion matrix of Language and Other vars
   tab <- table(x$Language, x$Other)
   
+  # Extract matrix cells
   n_00 <- tab[1,1]
   n_10 <- tab[2,1]
   n_01 <- tab[1,2]
   n_11 <- tab[2,2]
   
+  # Total number of participants with any regression
   N_any <- n_10 + n_01 + n_11
   
+  # Proportions of any regression formed by each group
   w_10 <- n_10 / N_any
   w_01 <- n_01 / N_any
   w_11 <- n_11 / N_any
   
+  # Define contrast vectors
   contrast_vectors <- list(
     Language_vs_None  = c(-1,  1,  0,  0),
     Other_vs_None     = c(-1,  0,  1,  0),
@@ -90,6 +103,7 @@ evaluate_model <- function(x, type = "linear") {
     Any_vs_Both       = c( 0, w_10, w_01, w_11 - 1)
   )
   
+  # Evaluate model and contrasts
   if (type == "linear") {
     model <- lm(y ~ Language*Other, data = x)
     emm <- emmeans(model, ~ Language*Other) 
@@ -103,6 +117,7 @@ evaluate_model <- function(x, type = "linear") {
     stop()
   }
   
+  # Combine information for contrasts and adjust for MC
   df_contrasts <- emm %>% 
     contrast(method = contrast_vectors) %>% 
     as_tibble() %>% 
@@ -117,9 +132,10 @@ evaluate_model <- function(x, type = "linear") {
 #' Generate heatmap of linear hypothesis test stats
 #'
 #' @param x (tibble) Tibble containing results of linear hypothesis tests
-#' @param threshold (numeric scalar)
+#' @param threshold_lwr (numeric scalar) Lower threshold for colour scale
+#' @param threshold_upr (numeric scalar) Upper threshold for colour scale
 #'
-#' @returns
+#' @returns (list) List containing ggplot and data used to plot
 contrasts_heatmap <- function(x, threshold_lwr = -log10(0.05), threshold_upr = 10) {
   
   groups <- c("None", "Language", "Other", "Both", "Any")
@@ -267,11 +283,11 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
 
 The set of participants with ADI regression information breaks down as follows:
 
-```{r}
+```{r sample-numbers}
 compute_group_summaries(x = df_regressive_autism, groups = df_regressive_groups)
 ```
 
-```{r}
+```{r sample-language-missing}
 #| echo: false
 #| eval: false
 
@@ -279,7 +295,7 @@ df_regressive_autism %>%
   filter(is.na(Language))
 ```
 
-```{r}
+```{r sample-other-missing}
 #| echo: false
 #| eval: false
 
@@ -291,7 +307,7 @@ df_regressive_autism %>%
 
 # Age of regression onset
 
-```{r}
+```{r age-of-onset}
 file <- "data/processed/Onset/age_of_onset.csv"
 df_onset <- read_csv(file, show_col_types = FALSE)
 
@@ -310,7 +326,7 @@ message("Mean age of onset: ", round(age_onset_mean, 1), " months")
 
 The subset of participants with adaptive function scores:
 
-```{r}
+```{r adaptive-function}
 # Filter for participants with adaptive function scores
 df_adaptive <- df_regressive_autism %>% 
   select(ID, Language, Other, AdaptiveScore) %>% 
@@ -326,7 +342,7 @@ compute_group_summaries(x = df_adaptive_lm, groups = df_regressive_groups)
 ```
 
 ```{r, fig.width=9}
-#| label: adaptive-func-heatmap
+#| label: adaptive-function-plot
 
 # Evaluate model
 list_adaptive <- evaluate_model(x = df_adaptive_lm)
@@ -363,13 +379,13 @@ plt_adaptive
 
 **Linear regression output:**
 
-```{r}
+```{r adaptive-function-model}
 summary(list_adaptive$model)
 ```
 
 ## Social Adaptive Function
 
-```{r}
+```{r social-adaptive}
 # Filter for participants with adaptive function scores
 df_adaptive_soc <- df_regressive_autism %>% 
   select(ID, Language, Other, SocialAdaptiveScore) %>% 
@@ -385,7 +401,7 @@ compute_group_summaries(x = df_adaptive_soc_lm, groups = df_regressive_groups)
 ```
 
 ```{r, fig.width=9}
-#| label: social-adaptive-func-heatmap
+#| label: social-adaptive-plot
 
 # Evaluate model
 list_adaptive_soc <- evaluate_model(x = df_adaptive_soc_lm)
@@ -426,7 +442,7 @@ plt_adaptive_soc
 
 The subset of participants with IQ scores:
 
-```{r}
+```{r iq}
 # Filter for participants with adaptive function scores
 df_IQ <- df_regressive_autism %>% 
   select(ID, Language, Other, IQ) %>% 
@@ -439,7 +455,7 @@ df_IQ_lm <- df_IQ %>%
 compute_group_summaries(x = df_IQ_lm, groups = df_regressive_groups)
 ```
 
-```{r}
+```{r iq-plot}
 #| fig-width: 9 
 
 list_IQ <- evaluate_model(x = df_IQ_lm)
@@ -474,7 +490,7 @@ plt_IQ
 
 **Linear regression output:**
 
-```{r}
+```{r iq-model}
 summary(list_IQ$model)
 ```
 
@@ -484,7 +500,7 @@ summary(list_IQ$model)
 
 The subset of participants with ADOS scores:
 
-```{r}
+```{r ados-overview}
 df_ADOS_CSS <- df_regressive_autism %>% 
   select(ID, Language, Other, ADOS_CSS) %>% 
   filter(!is.na(ADOS_CSS), !is.na(Language), !is.na(Other))
@@ -505,7 +521,7 @@ df_ADOS_n
 
 3,767 participants have overall total scores (OTS) and 2,867 participants have calibrated standard scores (CSS). Among the participants with OTS scores, some have zero values:
 
-```{r}
+```{r ados-ots-zeros}
 df_ADOS_OTS %>% 
   mutate(ADOS_zero = ADOS_OTS == 0) %>% 
   group_by(ADOS_zero) %>% 
@@ -519,7 +535,7 @@ df_ADOS_OTS %>%
 
 ## ADOS CSS
 
-```{r}
+```{r ados-css-plot}
 #| fig-width: 9 
 
 # Filter for participants with adaptive function scores
@@ -561,13 +577,13 @@ plt_ADOS_CSS
 
 **Linear regression output:**
 
-```{r}
+```{r ados-css-model}
 summary(list_ADOS_CSS$model)
 ```
 
 ## ADOS OTS with zeros excluded
 
-```{r}
+```{r ados-ots-plot}
 #| fig-width: 9 
 
 # Filter for participants with adaptive function scores
@@ -608,7 +624,7 @@ plt_ADOS_OTS
 
 **Linear regression output:**
 
-```{r}
+```{r ados-ots-model}
 summary(list_ADOS_OTS$model)
 ```
 
@@ -1026,21 +1042,10 @@ df_ADOS_zeros %>%
 
 # ADHD
 
-```{r}
-# file_ADHD <- "data/processed/ADHD/ADHD.csv"
-# df_ADHD_only <- read_csv(file_ADHD, show_col_types = FALSE)
-# 
-# n_ADHD <- nrow(df_ADHD_only)
-# n_intersect <- df_regressive_autism %>% 
-#   filter(!is.na(ADHD)) %>% 
-#   nrow()
-# 
-# tibble(`ADI-R` = n_ADIR, ADHD = n_ADHD, Intersection = n_intersect)
-```
 
 There are 1,304 participants with ADHD information:
 
-```{r}
+```{r adhd-numbers-1}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(ADHD) %>% 
@@ -1051,7 +1056,7 @@ df_regressive_autism %>%
 
 Broken down by regression group:
 
-```{r}
+```{r adhd-numbers-2}
 df_ADHD <- df_regressive_autism %>% 
   select(ID, Language, Other, ADHD) %>% 
   filter(!is.na(ADHD), !is.na(Language), !is.na(Other))
@@ -1059,7 +1064,7 @@ df_ADHD <- df_regressive_autism %>%
 compute_group_summaries(x = df_ADHD, groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r adhd-plot, fig.width = 9}
 df_ADHD_lr <- df_ADHD %>% 
   select(ID, y = ADHD, 
          Language, Other) 
@@ -1093,7 +1098,7 @@ plt_ADHD
 
 **Logistic regression output:**
 
-```{r}
+```{r adhd-model}
 summary(list_ADHD$model)
 ```
 
@@ -1132,7 +1137,7 @@ df_ADHD_lr %>%
 
 There are 1,080 participants with anxiety information:
 
-```{r}
+```{r anxiety-numbers-1}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Anxiety) %>% 
@@ -1143,7 +1148,7 @@ df_regressive_autism %>%
 
 Broken down by regression group:
 
-```{r}
+```{r anxiety-numbers-2}
 df_anxiety <- df_regressive_autism %>% 
   select(ID, Language, Other, Anxiety) %>% 
   filter(!is.na(Anxiety), !is.na(Language), !is.na(Other))
@@ -1151,7 +1156,7 @@ df_anxiety <- df_regressive_autism %>%
 compute_group_summaries(x = df_anxiety, groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r anxiety-plot, fig.width = 9}
 df_anxiety_lr <- df_anxiety %>% 
   select(ID, y = Anxiety, 
          Language, Other) 
@@ -1185,7 +1190,7 @@ plt_anxiety
 
 **Logistic regression output:**
 
-```{r}
+```{r anxiety-model}
 summary(list_anxiety$model)
 ```
 
@@ -1193,7 +1198,7 @@ summary(list_anxiety$model)
 
 ### CBCL Anxious Problems
 
-```{r}
+```{r anxiety-cbcl-numbers}
 file <- "data/processed/Anxiety/anxiety_cbcl.csv"
 df_anxiety_cbcl <- read_csv(file, show_col_types = FALSE)
 
@@ -1208,7 +1213,7 @@ df_anxiety_cbcl %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r anxiety-cbcl-plot, fig.width = 9}
 df_anxiety_cbcl_lm <- df_anxiety_cbcl %>% 
   select(ID, y = CBCL_AP_TS) %>% 
   inner_join(df_regressive_autism %>% 
@@ -1250,7 +1255,7 @@ plt_anxiety_cbcl
 
 ### RCADS Generalized Anxiety
 
-```{r}
+```{r anxiety-rcads}
 file <- "data/processed/Anxiety/anxiety_rcads.csv"
 df_anxiety_rcads <- read_csv(file, show_col_types = FALSE)
 
@@ -1265,7 +1270,7 @@ df_anxiety_rcads %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r anxiety-rcads-plot, fig.width = 9}
 df_anxiety_rcads_lm <- df_anxiety_rcads %>% 
   select(ID, y = score) %>% 
   group_by(ID) %>% 
@@ -1310,7 +1315,7 @@ plt_anxiety_rcads
 
 ### SPENCEP Total Score
 
-```{r}
+```{r anxiety-spence}
 file <- "data/processed/Anxiety/anxiety_spencep.csv"
 df_anxiety_spencep <- read_csv(file, show_col_types = FALSE)
 
@@ -1325,7 +1330,7 @@ df_anxiety_spencep %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r anxiety-spence-plot, fig.width = 9}
 df_anxiety_spencep_lm <- df_anxiety_spencep %>% 
   select(ID, y = score) %>% 
   group_by(ID) %>% 
@@ -1374,7 +1379,7 @@ plt_anxiety_spencep
 
 There are 832 participants with depression information:
 
-```{r}
+```{r depression-numbers-1}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Depression) %>% 
@@ -1385,7 +1390,7 @@ df_regressive_autism %>%
 
 Broken down by regression group:
 
-```{r}
+```{r depression-numbers-2}
 df_depression <- df_regressive_autism %>% 
   select(ID, Language, Other, Depression) %>% 
   filter(!is.na(Depression), !is.na(Language), !is.na(Other))
@@ -1393,7 +1398,7 @@ df_depression <- df_regressive_autism %>%
 compute_group_summaries(x = df_depression, groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r depression-plot, fig.width = 9}
 df_depression_lr <- df_depression %>% 
   select(ID, y = Depression, 
          Language, Other) 
@@ -1429,7 +1434,7 @@ plt_depression
 
 ### CBCL Affective Problems
 
-```{r}
+```{r depression-cbcl-numbers}
 file <- "data/processed/Depression/depression_cbcl.csv"
 df_depression_cbcl <- read_csv(file, show_col_types = FALSE)
 
@@ -1444,7 +1449,7 @@ df_depression_cbcl %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r depression-cbcl-plot, fig.width = 9}
 df_depression_cbcl_lm <- df_depression_cbcl %>% 
   select(ID, y = CBCL_AP_TS) %>% 
   inner_join(df_regressive_autism %>% 
@@ -1486,7 +1491,7 @@ plt_depression_cbcl
 
 ### RCADS Depression
 
-```{r}
+```{r depression-rcads-numbers}
 file <- "data/processed/Depression/depression_rcads.csv"
 df_depression_rcads <- read_csv(file, show_col_types = FALSE)
 
@@ -1501,7 +1506,7 @@ df_depression_rcads %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r depression-rcads-plot, fig.width = 9}
 df_depression_rcads_lm <- df_depression_rcads %>% 
   select(ID, y = score) %>% 
   group_by(ID) %>% 
@@ -1550,7 +1555,7 @@ plt_depression_rcads
 
 There are 767 participants with sleep information:
 
-```{r}
+```{r sleep-numbers-1}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Sleep) %>% 
@@ -1561,7 +1566,7 @@ df_regressive_autism %>%
 
 Broken down by regression group:
 
-```{r}
+```{r sleep-numbers-2}
 df_sleep <- df_regressive_autism %>% 
   select(ID, Language, Other, Sleep) %>% 
   filter(!is.na(Sleep), !is.na(Language), !is.na(Other))
@@ -1569,7 +1574,7 @@ df_sleep <- df_regressive_autism %>%
 compute_group_summaries(x = df_sleep, groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r sleep-plot, fig.width = 9}
 df_sleep_lr <- df_sleep %>% 
   select(ID, y = Sleep, 
          Language, Other) 
@@ -1607,7 +1612,7 @@ plt_sleep
 
 There are 4,160 participants with seizure information:
 
-```{r}
+```{r seizures-numbers-1}
 df_regressive_autism %>% 
   filter(!is.na(Language), !is.na(Other)) %>% 
   group_by(Seizure) %>% 
@@ -1618,7 +1623,7 @@ df_regressive_autism %>%
 
 Broken down by regression group:
 
-```{r}
+```{r seizures-numbers-2}
 df_seizures <- df_regressive_autism %>% 
   select(ID, Language, Other, Seizure, Seizure_Date, DOB, ADIR_Age) %>% 
   filter(!is.na(Seizure), !is.na(Language), !is.na(Other))
@@ -1626,7 +1631,7 @@ df_seizures <- df_regressive_autism %>%
 compute_group_summaries(x = df_seizures, groups = df_regressive_groups)
 ```
 
-```{r fig.width = 9}
+```{r seizures-plot, fig.width = 9}
 df_seizures_lr <- df_seizures %>% 
   select(ID, y = Seizure, 
          Language, Other) 
@@ -1662,7 +1667,7 @@ plt_seizures
 
 The distributions of ages among participants with seizure information:
 
-```{r fig.width = 9}
+```{r seizures-age-dist, fig.width = 9}
 df_seizures_age <- df_seizures %>% 
   mutate(Seizure_Date = ifelse(Seizure_Date == "1900-01-01", NA, Seizure_Date)) %>% 
   mutate(Seizure_Date = as.Date(Seizure_Date)) %>% 
@@ -1681,7 +1686,7 @@ ggplot(df_seizures_age, aes(x = Seizure_Age, fill = Seizure, y = after_stat(dens
 
 If we split the seizure ages into three bins, the numbers are as follows:
 
-```{r}
+```{r seizures-age-binned-3}
 df_seizures_binned <- df_seizures_age %>% 
   mutate(AgeBin = case_when(Seizure_Age < 5 ~ "< 5",
                             Seizure_Age >= 5 & Seizure_Age < 12 ~ "5-12",
