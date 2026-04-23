@@ -1042,7 +1042,6 @@ df_ADOS_zeros %>%
 
 # ADHD
 
-
 There are 1,304 participants with ADHD information:
 
 ```{r adhd-numbers-1}
@@ -3404,17 +3403,90 @@ plt_results_4
 # Results table
 
 ```{r}
-df_results_export <- df_corrected %>% 
+list_group_summaries <- vector(mode = "list", length = length(list_to_correct))
+names(list_group_summaries) <- names(list_to_correct)
+for (i in 1:length(list_group_summaries)) {
+  
+  if (list_to_correct[[i]]$type == "mixed-effects") {
+    df_i <- attributes(list_to_correct[[i]]$model)$frame
+  } else {
+    df_i <- list_to_correct[[i]]$model$model
+  }
+
+df_i <- df_i %>% 
+  left_join(df_regressive_groups, by = c("Language", "Other")) %>% 
+  mutate(Group2 = ifelse(Group == "None", "None", "Any"))
+
+df_stats_i <- bind_rows(
+  df_i %>% 
+    group_by(Group) %>% 
+    summarise(mean = mean(y), SD = sd(y)) %>% 
+    ungroup(), 
+  df_i %>% 
+    group_by(Group2) %>% 
+    summarise(mean = mean(y), SD = sd(y)) %>% 
+    ungroup() %>% 
+    rename(Group = Group2) %>% 
+    filter(Group == "Any")
+)
+
+df_stats_i$n <- nrow(df_i)
+
+list_group_summaries[[i]] <- df_stats_i
+
+}
+
+df_group_summaries <- bind_rows(list_group_summaries, .id = "measure")
+
+```
+
+```{r}
+df_results <- df_corrected %>% 
+  mutate(comparison_mean = 0, 
+         comparison_sd = 0, 
+         reference_mean = 0,
+         reference_sd = 0,
+         n = 0)
+
+for (i in 1:nrow(df_results)) {
+  
+  measure_name <- df_results[[i, "variable"]]
+  comparison_group <- as.character(df_results[[i, "Comparison"]])
+  reference_group <- as.character(df_results[[i, "Reference"]])
+  
+  df_comparison_group <- df_group_summaries %>% 
+    filter(measure == measure_name,
+           Group == comparison_group) 
+  
+  df_reference_group <- df_group_summaries %>% 
+    filter(measure == measure_name,
+           Group == reference_group) 
+  
+  df_results[[i, "comparison_mean"]] <- df_comparison_group[["mean"]]
+  df_results[[i, "comparison_sd"]] <- df_comparison_group[["SD"]]
+  df_results[[i, "reference_mean"]] <- df_reference_group[["mean"]]
+  df_results[[i, "reference_sd"]] <- df_reference_group[["SD"]]
+  df_results[[i, "n"]] <- df_group_summaries %>% 
+    filter(measure == measure_name) %>% 
+    pull(n) %>% 
+    unique()
+  
+}
+
+```
+
+```{r}
+df_results_export <- df_results %>%
   filter(Comparison != "Other", Reference != "Other") %>% 
   filter(Label != "Any vs. Both") %>% 
   arrange(variable, Reference, Comparison) %>% 
   mutate(q.value = p.adjust(p.value, method = "fdr")) %>% 
-  select(Measure = variable, Contrast = Label, Estimate = estimate, SE, p.value, q.value)
+  mutate(`Comparison Group Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")"),
+         `Reference Group Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")"),
+         `Model Estimate (SE)` = paste0(round(estimate, 2), " (", round(SE, 2), ")")) %>% 
+  select(Measure = variable, `Sample Size` = n, Contrast = Label, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`, `Model Estimate (SE)`, p.value, q.value)
 
 outfile <- "results.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_results_export, outfile)
-
-df_results_export
 ```
-
