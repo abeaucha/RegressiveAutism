@@ -1,6 +1,6 @@
 # process_ADOS_data.R
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
+
 
 # Packages --------------------------------------------------------------------
 

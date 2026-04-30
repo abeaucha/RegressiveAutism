@@ -1,8 +1,6 @@
 # process_depression_data.R
 
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
-
 # Packages --------------------------------------------------------------------
 
 suppressPackageStartupMessages(library(tidyverse))

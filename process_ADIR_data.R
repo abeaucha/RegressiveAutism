@@ -1,6 +1,5 @@
 # process_ADIR_data.R
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
 
 # Packages --------------------------------------------------------------------
 
@@ -29,27 +28,27 @@ adir_output_dir <- "data/processed/ADI-R/"
 
 # List of files from which we're pulling regression scores
 list_adir_files <- list(
-  list(file = "11_languagelossmeasure_values_2025-08-08T18_23_22.684013Z.xlsx",
+  list(file = "WPS ADI11 Language regression.xlsx",
        questionnaire = "ADI-WPS",
        question = "ADI11",
        measure = "Language",
        positive = 1),
-  list(file = "ADIR_20_measure_values_2025-09-05T14_57_43.429564Z.xlsx",
+  list(file = "WPS ADI20 other regression.xlsx",
        questionnaire = "ADI-WPS",
        question = "ADI20",
        measure = "Other",
        positive = 2),
-  list(file = "39lnguage loss_measure_values_2025-08-08T18_27_27.460797Z.xlsx",
+  list(file = "ADI1995ADI39E.xlsx",
        questionnaire = "ADI-1995",
        question = "ADI39E",
        measure = "Language",
        positive = 2),
-  list(file = "ADI 1995 _95_95B5 other loss under 5_measure_values_2025-08-08T18_31_50.351835Z.xlsx",
+  list(file = "ADI1995 ADI95B.xlsx",
        questionnaire = "ADI-1995",
        question = "ADI95B5",
        measure = "Other",
        positive = 2),
-  list(file = "ADI 1995_95A5_  other loss over 5_2025-09-29T12_48_13.481482Z.xlsx",
+  list(file = "ADI1995ADI95A.xlsx",
        questionnaire = "ADI-1995",
        question = "ADI95A5",
        measure = "Other",
@@ -116,7 +115,7 @@ df_adir_wps_unique <- df_adir_wps %>%
 # Excel file containing information about participants with multiple ADI-R WPS
 # (Curated by Hassan)
 file_wps_multiple <- "ADIWPS_multiple.xlsx"
-df_adir_wps_multiple <- read_excel(file.path(adir_input_dir, file_wps_multiple))
+df_adir_wps_multiple <- read_excel(file.path("data/raw/ADI-R", file_wps_multiple))
 
 # Regression statuses for participants with ADI-R WPS
 df_adir_wps_bool <- bind_rows(df_adir_wps_unique,
@@ -152,7 +151,7 @@ df_adir_1995_unique <- df_adir_1995 %>%
 # Excel file containing information about participants with multiple ADI-R 1995
 # (Curated by Hassan)
 file_1995_multiple <- "ADI1995_multiple.xlsx"
-df_adir_1995_multiple <- read_excel(file.path(adir_input_dir, file_1995_multiple))
+df_adir_1995_multiple <- read_excel(file.path("data/raw/ADI-R", file_1995_multiple))
 
 # Regression statuses for participants with ADI-R 1995
 df_adir_1995_bool <- bind_rows(df_adir_1995_unique,

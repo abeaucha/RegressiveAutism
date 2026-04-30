@@ -1,6 +1,5 @@
 # process_data.R
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
 
 domains <- c("demographics", "ADIR", "ADOS", 
              "ADHD", "anxiety", "depression", "seizures", "sleep", "prematurity",

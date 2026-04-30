@@ -1,7 +1,6 @@
 # process_anxiety_data.R
 
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
 
 # Packages --------------------------------------------------------------------
 

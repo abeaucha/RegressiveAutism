@@ -1,6 +1,5 @@
 # combine_data.R
 
-setwd("/Users/abeauchamp/Documents/Projects/RegressiveAutism")
 
 # Packages --------------------------------------------------------------------
 

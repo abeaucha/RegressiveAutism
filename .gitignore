@@ -6,3 +6,6 @@ data/
 figures/
 *.html
 regressive_autism_analysis_v2_files/
+ADIR_DB7_new*
+old_new_comparison.R
+regressive_autism_analysis_old.qmd
