@@ -279,7 +279,6 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
   mutate(Group = factor(Group, levels = regressive_group_lvls))
 ```
 
-
 # Sample overview
 
 The set of participants with ADI regression information breaks down as follows:
@@ -306,6 +305,48 @@ df_regressive_autism %>%
 
 ------------------------------------------------------------------------
 
+
+# Age
+
+```{r, fig.width=9}
+df_age_lm <- df_regressive_autism %>% 
+  filter(!is.na(ADIR_Age)) %>% 
+  select(ID, Language, Other, y = ADIR_Age) %>% 
+  filter(!is.na(Language), !is.na(Other))
+
+
+# Evaluate model
+list_age <- evaluate_model(x = df_age_lm)
+
+# Generate heatmap from group contrasts
+list_age_heatmap <- contrasts_heatmap(x = list_age$contrasts)
+
+plt_age_heatmap <- list_age_heatmap$plot
+
+
+plt_age_scatter <- regression_scatter(model = list_age, 
+                                      groups = df_regressive_groups,
+                                      ybreaks = seq(0, 200, by = 5), 
+                                      point_alpha_values = c(0.25, 0.5, 0.5, 0.5))
+
+plt_age_scatter <- plt_age_scatter +
+  labs(y = "Age")
+
+plt_age <- plt_age_scatter + plt_age_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Age vs. Regression Status")
+
+outfile <- "age.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_age)
+invisible(dev.off())
+
+plt_age
+```
+
 # Age of regression onset
 
 ```{r age-of-onset}
@@ -318,6 +359,65 @@ age_onset_mean <- df_onset %>%
 
 message("Mean age of onset: ", round(age_onset_mean, 1), " months")
 ```
+
+------------------------------------------------------------------------
+
+# Sex
+
+```{r}
+file <- "data/raw/sex and Hx autism.xlsx"
+df_sex  <- suppressWarnings(read_excel(file)) %>%
+  select(ID = Indexid, Sex)
+
+df_sex <- df_sex %>% 
+  select(ID, Sex) %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(Sex), !is.na(Language), !is.na(Other)) 
+
+
+df_sex %>% 
+  group_by(Sex) %>% 
+  count() %>% 
+  ungroup()  
+```
+
+```{r, fig.width = 9}
+df_sex_lr <- df_sex %>%
+  mutate(y = Sex == "F")
+
+list_sex <- evaluate_model(x = df_sex_lr, type = "logistic")
+
+
+list_sex_heatmap <- contrasts_heatmap(x = list_sex$contrasts)
+
+plt_sex_heatmap <- list_sex_heatmap$plot 
+
+plt_sex_probs <- regression_probs(model = list_sex, 
+                                   groups = df_regressive_groups,
+                                   ybreaks = seq(0, 1, by = 0.1),
+                                   ylims = c(0, 0.5))
+
+plt_sex_probs <- plt_sex_probs + 
+  labs(y = "Probability (Female)")
+
+plt_sex <- plt_sex_probs + plt_sex_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "Sex vs. Regression Status")
+
+outfile <- "sex.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_sex)
+invisible(dev.off())
+
+plt_sex
+```
+
+
 
 ------------------------------------------------------------------------
 
@@ -2695,6 +2795,154 @@ print(plt_SIDC)
 invisible(dev.off())
 
 plt_SIDC
+```
+
+## CTOPP 
+
+### Phonological Awareness
+
+```{r}
+file <- "data/raw/CTOPP/CTOPP_CTPACS Phonological Awareness Composite Score.xlsx"
+df_ctopp_pa  <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) %>% 
+  filter(!is.na(score))
+
+df_ctopp_pa <- df_ctopp_pa %>% 
+  group_by(ID) %>% 
+  summarise(score = mean(score)) %>% 
+  ungroup()
+
+df_ctopp_pa <- df_ctopp_pa %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_ctopp_pa <- evaluate_model(x = df_ctopp_pa, type = "linear")
+
+# Generate heatmap from group contrasts
+list_ctopp_pa_heatmap <- contrasts_heatmap(x = list_ctopp_pa$contrasts)
+
+plt_ctopp_pa_heatmap <- list_ctopp_pa_heatmap$plot
+
+plt_ctopp_pa_scatter <- regression_scatter(model = list_ctopp_pa, 
+                                          groups = df_regressive_groups)
+
+plt_ctopp_pa_scatter <- plt_ctopp_pa_scatter +
+labs(y = "CTOPP Phonological Awareness")
+
+plt_ctopp_pa <- plt_ctopp_pa_scatter + plt_ctopp_pa_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CTOPP vs. Regression Status")
+
+outfile <- "ctopp_pa.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ctopp_pa)
+invisible(dev.off())
+
+plt_ctopp_pa
+```
+
+
+### Phonological Memory
+
+```{r}
+file <- "data/raw/CTOPP/CTOPP_CTPMCS Phonological Memory Composite score.xlsx"
+df_ctopp_pm  <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) %>% 
+  filter(!is.na(score))
+
+df_ctopp_pm <- df_ctopp_pm %>% 
+  group_by(ID) %>% 
+  summarise(score = mean(score)) %>% 
+  ungroup()
+
+df_ctopp_pm <- df_ctopp_pm %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_ctopp_pm <- evaluate_model(x = df_ctopp_pm, type = "linear")
+
+# Generate heatmap from group contrasts
+list_ctopp_pm_heatmap <- contrasts_heatmap(x = list_ctopp_pm$contrasts)
+
+plt_ctopp_pm_heatmap <- list_ctopp_pm_heatmap$plot
+
+plt_ctopp_pm_scatter <- regression_scatter(model = list_ctopp_pm, 
+                                          groups = df_regressive_groups)
+
+plt_ctopp_pm_scatter <- plt_ctopp_pm_scatter +
+labs(y = "CTOPP Phonological Memory")
+
+plt_ctopp_pm <- plt_ctopp_pm_scatter + plt_ctopp_pm_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CTOPP vs. Regression Status")
+
+outfile <- "ctopp_pm.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ctopp_pm)
+invisible(dev.off())
+
+plt_ctopp_pm
+```
+
+
+### Rapid Naming
+
+```{r}
+file <- "data/raw/CTOPP/CTOPP_CTRNCS Rapid naming Composite score.xlsx"
+df_ctopp_rn  <- read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value) %>% 
+  filter(!is.na(score))
+
+df_ctopp_rn <- df_ctopp_rn %>% 
+  group_by(ID) %>% 
+  summarise(score = mean(score)) %>% 
+  ungroup()
+
+df_ctopp_rn <- df_ctopp_rn %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_ctopp_rn <- evaluate_model(x = df_ctopp_rn, type = "linear")
+
+# Generate heatmap from group contrasts
+list_ctopp_rn_heatmap <- contrasts_heatmap(x = list_ctopp_rn$contrasts)
+
+plt_ctopp_rn_heatmap <- list_ctopp_rn_heatmap$plot
+
+plt_ctopp_rn_scatter <- regression_scatter(model = list_ctopp_rn, 
+                                          groups = df_regressive_groups)
+
+plt_ctopp_rn_scatter <- plt_ctopp_rn_scatter +
+labs(y = "CTOPP Rapid Naming")
+
+plt_ctopp_rn <- plt_ctopp_rn_scatter + plt_ctopp_rn_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "CTOPP vs. Regression Status")
+
+outfile <- "ctopp_rn.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_ctopp_rn)
+invisible(dev.off())
+
+plt_ctopp_rn
 ```
 
 ------------------------------------------------------------------------
