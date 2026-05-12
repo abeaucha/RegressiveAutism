@@ -284,7 +284,8 @@ df_regressive_groups <- expand_grid(Language = c(TRUE, FALSE),
 The set of participants with ADI regression information breaks down as follows:
 
 ```{r sample-numbers}
-compute_group_summaries(x = df_regressive_autism, groups = df_regressive_groups)
+compute_group_summaries(x = df_regressive_autism, 
+                        groups = df_regressive_groups)
 ```
 
 ```{r sample-language-missing}
@@ -304,7 +305,6 @@ df_regressive_autism %>%
 ```
 
 ------------------------------------------------------------------------
-
 
 # Age
 
@@ -416,8 +416,6 @@ invisible(dev.off())
 
 plt_sex
 ```
-
-
 
 ------------------------------------------------------------------------
 
@@ -2797,7 +2795,7 @@ invisible(dev.off())
 plt_SIDC
 ```
 
-## CTOPP 
+## CTOPP
 
 ### Phonological Awareness
 
@@ -2847,7 +2845,6 @@ invisible(dev.off())
 plt_ctopp_pa
 ```
 
-
 ### Phonological Memory
 
 ```{r}
@@ -2895,7 +2892,6 @@ invisible(dev.off())
 
 plt_ctopp_pm
 ```
-
 
 ### Rapid Naming
 
@@ -2966,6 +2962,47 @@ df_rbs %>%
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
 ```
+
+## RBS-R Overall 
+
+```{r fig.width = 9}
+df_rbs_all <- df_rbs %>% 
+  select(ID, y = RBSR_RBSALLT) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_all <- evaluate_model(x = df_rbs_all, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_all_heatmap <- contrasts_heatmap(x = list_rbs_all$contrasts)
+
+plt_rbs_all_heatmap <- list_rbs_all_heatmap$plot
+
+
+plt_rbs_all_scatter <- regression_scatter(model = list_rbs_all, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_rbs_all_scatter <- plt_rbs_all_scatter +
+labs(y = "RBS-R Overall")
+
+plt_rbs_all <- plt_rbs_all_scatter + plt_rbs_all_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS-R Overall vs. Regression Status")
+
+outfile <- "rbs_all.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_all)
+invisible(dev.off())
+
+plt_rbs_all
+```
+
 
 ## RBS-R original sub-domains
 
@@ -3296,6 +3333,53 @@ invisible(dev.off())
 plt_rbs_cpt_rit_smt
 ```
 
+## RBS-R endorsed
+
+```{r}
+file <- "data/raw/RBS-R/Overall number of items endorsed.xlsx"
+df_rbs_endorsed <- readxl::read_excel(file)
+
+df_rbs_endorsed_lm <- df_rbs_endorsed %>% 
+  select(ID = indexid, y = numeric_value) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_rbs_endorsed <- evaluate_model(x = df_rbs_endorsed_lm,
+                                       type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_rbs_endorsed_heatmap <- contrasts_heatmap(x = list_rbs_endorsed$contrasts)
+
+plt_rbs_endorsed_heatmap <- list_rbs_endorsed_heatmap$plot
+
+
+plt_rbs_endorsed_scatter <- regression_scatter(model = list_rbs_endorsed, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4),
+                                          ylims = c(0, 45),
+                                          ybreaks = seq(0, 100, by = 10))
+
+plt_rbs_endorsed_scatter <- plt_rbs_endorsed_scatter +
+labs(y = "RBS Items Endorsed")
+
+plt_rbs_endorsed <- plt_rbs_endorsed_scatter + plt_rbs_endorsed_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "RBS Endorsed vs. Regression Status")
+
+outfile <- "rbs_endorsed.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_rbs_endorsed)
+invisible(dev.off())
+
+plt_rbs_endorsed
+```
+
+
 # CBCL Externalizing Problems
 
 ```{r}
@@ -3426,15 +3510,21 @@ list_to_correct <- list("Adaptive Function Composite" = list_adaptive,
                         "Prematurity" = list_prematurity,
                         "SSP" = list_SSP_TOT,
                         "SRS" = list_SRS,
+                        "SCQ" = list_scq,
                         "Pragmatic Language" = list_lang_v1_prag,
                         "Structural Language" = list_lang_v1_struct,
                         "SIDC" = list_SIDC,
+                        "CTOPP PA" = list_ctopp_pa,
+                        "CTOPP PM" = list_ctopp_pm,
+                        "CTOPP RN" = list_ctopp_rn,
+                        "RBS Overall" = list_rbs_all,
                         "RBS Stereotyped" = list_rbs_stt,
                         "RBS Sameness" = list_rbs_smt,
                         "RBS Self-Injurious" = list_rbs_sit,
                         "RBS Ritualistic" = list_rbs_rtt,
                         "RBS Restricted" = list_rbs_rst,
                         "RBS Compulsive" = list_rbs_cpt,
+                        "RBS Endorsed" = list_rbs_endorsed,
                         "CBCL Internalizing" = list_cbcl_ip,
                         "CBCL Externalizing" = list_cbcl_ep)
 
@@ -3735,6 +3825,11 @@ df_results_export <- df_results %>%
          `Model Estimate (SE)` = paste0(round(estimate, 2), " (", round(SE, 2), ")")) %>% 
   select(Measure = variable, `Sample Size` = n, Contrast = Label, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`, `Model Estimate (SE)`, p.value, q.value)
 
+df_results_export
+```
+
+
+```{r}
 outfile <- "results.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_results_export, outfile)
