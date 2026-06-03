@@ -2941,6 +2941,222 @@ invisible(dev.off())
 plt_ctopp_rn
 ```
 
+## OWLS
+
+### Oral Expression
+
+```{r}
+file <- "data/raw/Language/OWLS/Oral Expression standard score 2nd edition.xlsx"
+df_owls_oe <- readxl::read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value)
+
+df_owls_oe %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r}
+df_owls_oe_lm <- df_owls_oe %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_oe <- evaluate_model(x = df_owls_oe_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_oe_heatmap <- contrasts_heatmap(x = list_owls_oe$contrasts)
+
+plt_owls_oe_heatmap <- list_owls_oe_heatmap$plot
+
+
+plt_owls_oe_scatter <- regression_scatter(model = list_owls_oe, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_oe_scatter <- plt_owls_oe_scatter +
+labs(y = "OWLS-2 Oral Expression")
+
+plt_owls_oe <- plt_owls_oe_scatter + plt_owls_oe_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS-2 Oral Expression vs. Regression Status")
+
+outfile <- "owls_oe.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_oe)
+invisible(dev.off())
+
+plt_owls_oe
+```
+
+------------------------------------------------------------------------
+
+### Listening Comprehension
+
+```{r}
+file <- "data/raw/Language/OWLS/Listening Comprehension standard score 2nd edition.xlsx"
+df_owls_lc <- readxl::read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value)
+
+df_owls_lc %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r}
+df_owls_lc_lm <- df_owls_lc %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_lc <- evaluate_model(x = df_owls_lc_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_lc_heatmap <- contrasts_heatmap(x = list_owls_lc$contrasts)
+
+plt_owls_lc_heatmap <- list_owls_lc_heatmap$plot
+
+
+plt_owls_lc_scatter <- regression_scatter(model = list_owls_lc, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_lc_scatter <- plt_owls_lc_scatter +
+labs(y = "OWLS-2 Listening Comprehension")
+
+plt_owls_lc <- plt_owls_lc_scatter + plt_owls_lc_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS-2 Listening Comprehension vs. Regression Status")
+
+outfile <- "owls_lc.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_lc)
+invisible(dev.off())
+
+plt_owls_lc
+```
+
+------------------------------------------------------------------------
+
+### Oral Language Composite
+
+```{r}
+file <- "data/raw/Language/OWLS/Oral Language Composite standard score 2nd edition.xlsx"
+df_owls_olc <- readxl::read_excel(file) %>% 
+  select(ID = indexid, score = numeric_value)
+
+df_owls_olc %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+               select(ID, Language, Other),
+             by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+```
+
+```{r}
+df_owls_olc_lm <- df_owls_olc %>% 
+  select(ID, y = score) %>% 
+  inner_join(df_regressive_autism %>% 
+              select(ID, Language, Other),
+            by = "ID") %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_olc <- evaluate_model(x = df_owls_olc_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_olc_heatmap <- contrasts_heatmap(x = list_owls_olc$contrasts)
+
+plt_owls_olc_heatmap <- list_owls_olc_heatmap$plot
+
+
+plt_owls_olc_scatter <- regression_scatter(model = list_owls_olc, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_olc_scatter <- plt_owls_olc_scatter +
+labs(y = "OWLS-2 Oral Language Composite")
+
+plt_owls_olc <- plt_owls_olc_scatter + plt_owls_olc_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS-2 Oral Language Composite vs. Regression Status")
+
+outfile <- "owls_olc.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_olc)
+invisible(dev.off())
+
+plt_owls_olc
+```
+
+## Controlling for IQ
+
+```{r}
+file <- "data/raw/IQ/aggregate_global_ability_estimate___all_scores_2026-04-29T21_57_22.803Z.xlsx"
+df_performance_IQ <- readxl::read_excel(file) %>% 
+  select(ID = indexid, general_ability_composite_estimate, nonverbal_score)
+```
+
+```{r}
+df_ctopp_pa_IQ <- df_ctopp_pa %>% 
+  left_join(df_performance_IQ, by = "ID") %>% 
+  filter(!is.na(nonverbal_score))
+
+df_ctopp_pa_IQ %>% 
+  group_by(Language, Other) %>% 
+  count()
+```
+
+```{r}
+df_ctopp_rn_IQ <- df_ctopp_rn %>% 
+  left_join(df_performance_IQ, by = "ID") %>% 
+  filter(!is.na(nonverbal_score))
+
+df_ctopp_rn_IQ %>% 
+  group_by(Language, Other) %>% 
+  count()
+```
+
+```{r}
+df_owls_olc_IQ <- df_owls_olc_lm %>% 
+  left_join(df_performance_IQ, by = "ID") %>% 
+  filter(!is.na(nonverbal_score))
+df_owls_olc_IQ %>% 
+  group_by(Language, Other) %>% 
+  count()
+```
+
+This is not feasible.
+
 ------------------------------------------------------------------------
 
 # Repetitive behaviours
@@ -2963,7 +3179,7 @@ df_rbs %>%
   compute_group_summaries(groups = df_regressive_groups)
 ```
 
-## RBS-R Overall 
+## RBS-R Overall
 
 ```{r fig.width = 9}
 df_rbs_all <- df_rbs %>% 
@@ -3002,7 +3218,6 @@ invisible(dev.off())
 
 plt_rbs_all
 ```
-
 
 ## RBS-R original sub-domains
 
@@ -3379,7 +3594,6 @@ invisible(dev.off())
 plt_rbs_endorsed
 ```
 
-
 # CBCL Externalizing Problems
 
 ```{r}
@@ -3504,19 +3718,26 @@ list_to_correct <- list("Adaptive Function Composite" = list_adaptive,
                         "ADOS OTS" = list_ADOS_OTS,
                         "ADHD" = list_ADHD,
                         "Anxiety" = list_anxiety,
+                        "Anxiety CBCL" = list_anxiety_cbcl,
+                        "Anxiety RCADS" = list_anxiety_rcads,
+                        "Anxiety SPENCE" = list_anxiety_spencep,
                         "Depression" = list_depression,
+                        "Depression CBCL" = list_depression_cbcl,
+                        "Depression RCADS" = list_depression_rcads,
                         "Sleep" = list_sleep,
                         "Seizures" = list_seizures,
                         "Prematurity" = list_prematurity,
                         "SSP" = list_SSP_TOT,
                         "SRS" = list_SRS,
                         "SCQ" = list_scq,
-                        "Pragmatic Language" = list_lang_v1_prag,
-                        "Structural Language" = list_lang_v1_struct,
-                        "SIDC" = list_SIDC,
-                        "CTOPP PA" = list_ctopp_pa,
-                        "CTOPP PM" = list_ctopp_pm,
-                        "CTOPP RN" = list_ctopp_rn,
+                        "CCC2 Pragmatic Language" = list_lang_v1_prag,
+                        "CCC2 Structural Language" = list_lang_v1_struct,
+                        "CTOPP Phonological Awareness" = list_ctopp_pa,
+                        "CTOPP Phonological Memory" = list_ctopp_pm,
+                        "CTOPP Rapid Naming" = list_ctopp_rn,
+                        "OWLS-2 Oral Expression" = list_owls_oe,
+                        "OWLS-2 Listening Comprehension" = list_owls_lc,
+                        "OWLS-2 Oral Language Composite" = list_owls_olc,
                         "RBS Overall" = list_rbs_all,
                         "RBS Stereotyped" = list_rbs_stt,
                         "RBS Sameness" = list_rbs_smt,
@@ -3814,10 +4035,11 @@ for (i in 1:nrow(df_results)) {
 
 ```
 
+## All "Any vs. None" comparisons
+
 ```{r}
 df_results_export <- df_results %>%
-  filter(Comparison != "Other", Reference != "Other") %>% 
-  filter(Label != "Any vs. Both") %>% 
+  filter(Comparison == "Any", Reference == "None") %>% 
   arrange(variable, Reference, Comparison) %>% 
   mutate(q.value = p.adjust(p.value, method = "fdr")) %>% 
   mutate(`Comparison Group Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")"),
@@ -3828,9 +4050,32 @@ df_results_export <- df_results %>%
 df_results_export
 ```
 
-
 ```{r}
 outfile <- "results.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_results_export, outfile)
+```
+
+## Results table 1
+
+```{r}
+measures_table_1 <- c("Adaptive Function Composite", "Full-scale IQ", "ADOS CSS", "ADHD", "Anxiety", "Depression", "Sleep", "Seizures", "SSP", "SRS", "SCQ", "CCC2 Pragmatic Language", "CCC2 Structural Language", "RBS Overall", "CBCL Internalizing", "CBCL Externalizing")
+
+df_results_table_1 <- df_results_export %>% 
+  filter(Measure %in% measures_table_1)
+
+outfile <- "results_table_1.csv"
+outfile <- file.path("data", outfile)
+write_csv(df_results_table_1, outfile)
+```
+
+## Results table 2
+
+```{r}
+df_results_table_2 <- df_results_export %>% 
+  anti_join(df_results_table_1, by = "Measure")
+
+outfile <- "results_table_2.csv"
+outfile <- file.path("data", outfile)
+write_csv(df_results_table_2, outfile)
 ```
