@@ -3711,50 +3711,50 @@ plt_cbcl_ip
 # Correcting for multiple comparisons
 
 ```{r}
-list_to_correct <- list("Adaptive Function Composite" = list_adaptive,
-                        "Social Adaptive Function" = list_adaptive_soc,
-                        "Full-scale IQ" = list_IQ,
-                        "ADOS CSS" = list_ADOS_CSS,
-                        "ADOS OTS" = list_ADOS_OTS,
-                        "ADHD" = list_ADHD,
-                        "Anxiety" = list_anxiety,
-                        "Anxiety CBCL" = list_anxiety_cbcl,
-                        "Anxiety RCADS" = list_anxiety_rcads,
-                        "Anxiety SPENCE" = list_anxiety_spencep,
-                        "Depression" = list_depression,
-                        "Depression CBCL" = list_depression_cbcl,
-                        "Depression RCADS" = list_depression_rcads,
-                        "Sleep" = list_sleep,
-                        "Seizures" = list_seizures,
-                        "Prematurity" = list_prematurity,
-                        "SSP" = list_SSP_TOT,
-                        "SRS" = list_SRS,
-                        "SCQ" = list_scq,
-                        "CCC2 Pragmatic Language" = list_lang_v1_prag,
-                        "CCC2 Structural Language" = list_lang_v1_struct,
-                        "CTOPP Phonological Awareness" = list_ctopp_pa,
-                        "CTOPP Phonological Memory" = list_ctopp_pm,
-                        "CTOPP Rapid Naming" = list_ctopp_rn,
-                        "OWLS-2 Oral Expression" = list_owls_oe,
-                        "OWLS-2 Listening Comprehension" = list_owls_lc,
-                        "OWLS-2 Oral Language Composite" = list_owls_olc,
-                        "RBS Overall" = list_rbs_all,
-                        "RBS Stereotyped" = list_rbs_stt,
-                        "RBS Sameness" = list_rbs_smt,
-                        "RBS Self-Injurious" = list_rbs_sit,
-                        "RBS Ritualistic" = list_rbs_rtt,
-                        "RBS Restricted" = list_rbs_rst,
-                        "RBS Compulsive" = list_rbs_cpt,
-                        "RBS Endorsed" = list_rbs_endorsed,
-                        "CBCL Internalizing" = list_cbcl_ip,
-                        "CBCL Externalizing" = list_cbcl_ep)
+list_results_init <- list("Adaptive Function Composite" = list_adaptive,
+                          "Social Adaptive Function" = list_adaptive_soc,
+                          "Full-scale IQ" = list_IQ,
+                          "ADOS CSS" = list_ADOS_CSS,
+                          "ADOS OTS" = list_ADOS_OTS,
+                          "ADHD" = list_ADHD,
+                          "Anxiety" = list_anxiety,
+                          "Anxiety CBCL" = list_anxiety_cbcl,
+                          "Anxiety RCADS" = list_anxiety_rcads,
+                          "Anxiety SPENCE" = list_anxiety_spencep,
+                          "Depression" = list_depression,
+                          "Depression CBCL" = list_depression_cbcl,
+                          "Depression RCADS" = list_depression_rcads,
+                          "Sleep" = list_sleep,
+                          "Seizures" = list_seizures,
+                          "Prematurity" = list_prematurity,
+                          "SSP" = list_SSP_TOT,
+                          "SRS" = list_SRS,
+                          "SCQ" = list_scq,
+                          "CCC2 Pragmatic Language" = list_lang_v1_prag,
+                          "CCC2 Structural Language" = list_lang_v1_struct,
+                          "CTOPP Phonological Awareness" = list_ctopp_pa,
+                          "CTOPP Phonological Memory" = list_ctopp_pm,
+                          "CTOPP Rapid Naming" = list_ctopp_rn,
+                          "OWLS-2 Oral Expression" = list_owls_oe,
+                          "OWLS-2 Listening Comprehension" = list_owls_lc,
+                          "OWLS-2 Oral Language Composite" = list_owls_olc,
+                          "RBS Overall" = list_rbs_all,
+                          "RBS Stereotyped" = list_rbs_stt,
+                          "RBS Sameness" = list_rbs_smt,
+                          "RBS Self-Injurious" = list_rbs_sit,
+                          "RBS Ritualistic" = list_rbs_rtt,
+                          "RBS Restricted" = list_rbs_rst,
+                          "RBS Compulsive" = list_rbs_cpt,
+                          "RBS Endorsed" = list_rbs_endorsed,
+                          "CBCL Internalizing" = list_cbcl_ip,
+                          "CBCL Externalizing" = list_cbcl_ep)
 
-list_corrected <- vector(mode = "list", length = length(list_to_correct))
-names(list_corrected) <- names(list_to_correct)
-for (i in 1:length(list_corrected)) {
+list_results_all <- vector(mode = "list", length = length(list_results_init))
+names(list_results_all) <- names(list_results_init)
+for (i in 1:length(list_results_all)) {
   
-  x <- list_to_correct[[i]]$contrasts #%>% 
-  type <- list_to_correct[[i]]$type
+  x <- list_results_init[[i]]$contrasts #%>% 
+  type <- list_results_init[[i]]$type
   
   if (type %in% c("linear", "mixed-effects")) {
     x <- x %>% 
@@ -3766,234 +3766,106 @@ for (i in 1:length(list_corrected)) {
       rename(estimate = odds.ratio, ratio = z.ratio) 
   }
   
-  x$variable <- names(list_corrected)[i]
+  x$variable <- names(list_results_all)[i]
   
-  list_corrected[[i]] <- x
+  list_results_all[[i]] <- x
 }
 
-df_corrected <- bind_rows(list_corrected)
+df_results_all <- bind_rows(list_results_all)
 
-df_corrected <- df_corrected %>% 
+df_results_all <- df_results_all %>% 
   unite(col = "Label", Comparison, Reference, sep = " vs. ", remove = FALSE) %>% 
   mutate(Comparison = factor(Comparison, levels = c(regressive_group_lvls, "Any")),
          Reference = factor(Reference, levels = c(regressive_group_lvls, "Any")),
-         variable = factor(variable, levels = names(list_corrected)))
+         variable = factor(variable, levels = names(list_results_all)))
 ```
 
 ## All group comparisons
 
 ```{r}
-threshold_lwr = -log10(0.05)
-threshold_upr = 10
-
-comparison_lvls <- df_corrected %>% 
-  select(Label, Comparison, Reference) %>% 
-  distinct() %>% 
-  arrange(Reference, Comparison) %>% 
-  pull(Label)
-
-df_corrected_1 <- df_corrected %>% 
-  filter(Label %in% comparison_lvls) %>% 
-  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
-  mutate(q.value = p.adjust(p.value, method = "fdr"),
-         NLQ = -log10(q.value)) %>% 
-  select(Label, variable, q.value, NLQ)
-
-plt_results_1 <- ggplot(df_corrected_1, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
-  geom_tile() +
-      scale_fill_gradientn(
-      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
-      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
-      limits  = c(threshold_lwr, threshold_upr),
-      oob     = scales::squish,        # forces NLQ <= thr to thr
-      na.value = "white"
-    ) +
-  scale_x_discrete(expand = expansion()) +
-  scale_y_discrete(expand = expansion()) +
-  labs(x = "Comparison",
-       y = NULL,
-       fill = "-log10(q-value)") + 
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
-
-outfile <- "results_all_1.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(7, "in"), 
-    height = unit(5, "in"))
-print(plt_results_1)
-invisible(dev.off())
-
-plt_results_1
+# threshold_lwr = -log10(0.05)
+# threshold_upr = 10
+# 
+# comparison_lvls <- df_corrected %>% 
+#   select(Label, Comparison, Reference) %>% 
+#   distinct() %>% 
+#   arrange(Reference, Comparison) %>% 
+#   pull(Label)
+# 
+# df_corrected_1 <- df_corrected %>% 
+#   filter(Label %in% comparison_lvls) %>% 
+#   mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
+#   mutate(q.value = p.adjust(p.value, method = "fdr"),
+#          NLQ = -log10(q.value)) %>% 
+#   select(Label, variable, q.value, NLQ)
+# 
+# plt_results_1 <- ggplot(df_corrected_1, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
+#   geom_tile() +
+#       scale_fill_gradientn(
+#       colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
+#       values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
+#       limits  = c(threshold_lwr, threshold_upr),
+#       oob     = scales::squish,        # forces NLQ <= thr to thr
+#       na.value = "white"
+#     ) +
+#   scale_x_discrete(expand = expansion()) +
+#   scale_y_discrete(expand = expansion()) +
+#   labs(x = "Comparison",
+#        y = NULL,
+#        fill = "-log10(q-value)") + 
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
+# 
+# outfile <- "results_all_1.pdf"
+# outfile <- file.path(output_dir, outfile)
+# pdf(file = outfile, 
+#     width = unit(7, "in"), 
+#     height = unit(5, "in"))
+# print(plt_results_1)
+# invisible(dev.off())
+# 
+# plt_results_1
 ```
 
-## Excluding "Other regression"
-
-```{r}
-comparison_lvls <- df_corrected %>% 
-  select(Label, Comparison, Reference) %>% 
-  distinct() %>%
-  filter(Comparison != "Other", Reference != "Other") %>% 
-  arrange(Reference, Comparison) %>% 
-  pull(Label)
-
-df_corrected_2 <- df_corrected %>% 
-  filter(Label %in% comparison_lvls) %>% 
-  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
-  mutate(q.value = p.adjust(p.value, method = "fdr"),
-         NLQ = -log10(q.value)) %>% 
-  select(Label, variable, q.value, NLQ)
-
-plt_results_2 <- ggplot(df_corrected_2, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
-  geom_tile() +
-      scale_fill_gradientn(
-      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
-      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
-      limits  = c(threshold_lwr, threshold_upr),
-      oob     = scales::squish,        # forces NLQ <= thr to thr
-      na.value = "white"
-    ) +
-  scale_x_discrete(expand = expansion()) +
-  scale_y_discrete(expand = expansion()) +
-  labs(x = "Comparison",
-       y = NULL,
-       fill = "-log10(q-value)") + 
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
-
-outfile <- "results_all_2.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"), 
-    height = unit(5, "in"))
-print(plt_results_2)
-invisible(dev.off())
-
-plt_results_2
-```
-
-## Only comparing to no regression
-
-```{r}
-comparison_lvls <- df_corrected %>% 
-  select(Label, Comparison, Reference) %>% 
-  distinct() %>% 
-  filter(Reference == "None") %>% 
-  arrange(Reference, Comparison) %>% 
-  pull(Label)
-
-df_corrected_3 <- df_corrected %>% 
-  filter(Label %in% comparison_lvls) %>% 
-  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
-  mutate(q.value = p.adjust(p.value, method = "fdr"),
-         NLQ = -log10(q.value)) %>% 
-  select(Label, variable, q.value, NLQ)
-
-plt_results_3 <- ggplot(df_corrected_3, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
-  geom_tile() +
-      scale_fill_gradientn(
-      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
-      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
-      limits  = c(threshold_lwr, threshold_upr),
-      oob     = scales::squish,        # forces NLQ <= thr to thr
-      na.value = "white"
-    ) +
-  scale_x_discrete(expand = expansion()) +
-  scale_y_discrete(expand = expansion()) +
-  labs(x = "Comparison",
-       y = NULL,
-       fill = "-log10(q-value)") + 
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
-
-outfile <- "results_all_3.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"), 
-    height = unit(5, "in"))
-print(plt_results_3)
-invisible(dev.off())
-
-plt_results_3
-```
-
-```{r}
-comparison_lvls <- df_corrected %>% 
-  select(Label, Comparison, Reference) %>% 
-  distinct() %>% 
-  filter(Reference == "None", Comparison != "Other") %>% 
-  arrange(Reference, Comparison) %>% 
-  pull(Label)
-
-df_corrected_4 <- df_corrected %>% 
-  filter(Label %in% comparison_lvls) %>% 
-  mutate(Label = factor(Label, levels = comparison_lvls)) %>% 
-  mutate(q.value = p.adjust(p.value, method = "fdr"),
-         NLQ = -log10(q.value)) %>% 
-  select(Label, variable, q.value, NLQ)
-
-plt_results_4 <- ggplot(df_corrected_4, aes(x = Label, y = fct_rev(variable), fill = NLQ)) +
-  geom_tile() +
-      scale_fill_gradientn(
-      colours = c("grey80", viridis::magma(256, begin = 0.2, end = 0.9)),
-      values  = scales::rescale(c(threshold_lwr, seq(threshold_lwr + 0.001, threshold_upr, length.out = 256))),
-      limits  = c(threshold_lwr, threshold_upr),
-      oob     = scales::squish,        # forces NLQ <= thr to thr
-      na.value = "white"
-    ) +
-  scale_x_discrete(expand = expansion()) +
-  scale_y_discrete(expand = expansion()) +
-  labs(x = "Comparison",
-       y = NULL,
-       fill = "-log10(q-value)") + 
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1.0))
-
-outfile <- "results_all_4.pdf"
-outfile <- file.path(output_dir, outfile)
-pdf(file = outfile, 
-    width = unit(6, "in"), 
-    height = unit(5, "in"))
-print(plt_results_4)
-invisible(dev.off())
-
-plt_results_4
-```
 
 # Results table
 
 ```{r}
-list_group_summaries <- vector(mode = "list", length = length(list_to_correct))
-names(list_group_summaries) <- names(list_to_correct)
+list_group_summaries <- vector(mode = "list", length = length(list_results_init))
+names(list_group_summaries) <- names(list_results_init)
 for (i in 1:length(list_group_summaries)) {
   
-  if (list_to_correct[[i]]$type == "mixed-effects") {
-    df_i <- attributes(list_to_correct[[i]]$model)$frame
+  if (list_results_init[[i]]$type == "mixed-effects") {
+    df_i <- attributes(list_results_init[[i]]$model)$frame
   } else {
-    df_i <- list_to_correct[[i]]$model$model
+    df_i <- list_results_init[[i]]$model$model
   }
-
-df_i <- df_i %>% 
-  left_join(df_regressive_groups, by = c("Language", "Other")) %>% 
-  mutate(Group2 = ifelse(Group == "None", "None", "Any"))
-
-df_stats_i <- bind_rows(
-  df_i %>% 
-    group_by(Group) %>% 
-    summarise(mean = mean(y), SD = sd(y)) %>% 
-    ungroup(), 
-  df_i %>% 
-    group_by(Group2) %>% 
-    summarise(mean = mean(y), SD = sd(y)) %>% 
-    ungroup() %>% 
-    rename(Group = Group2) %>% 
-    filter(Group == "Any")
-)
-
-df_stats_i$n <- nrow(df_i)
-
-list_group_summaries[[i]] <- df_stats_i
-
+  
+  df_i <- df_i %>% 
+    left_join(df_regressive_groups, by = c("Language", "Other")) %>% 
+    mutate(Group2 = ifelse(Group == "None", "None", "Any"))
+  
+  df_stats_i <- bind_rows(
+    df_i %>% 
+      group_by(Group) %>% 
+      summarise(mean = mean(y), SD = sd(y)) %>% 
+      ungroup(), 
+    df_i %>% 
+      group_by(Group2) %>% 
+      summarise(mean = mean(y), SD = sd(y)) %>% 
+      ungroup() %>% 
+      rename(Group = Group2) %>% 
+      filter(Group == "Any")
+  )
+  
+  if (list_results_init[[i]]$type == "mixed-effects") {
+    df_stats_i$n <- df_i %>% pull(ID) %>% unique() %>% length()
+  } else {
+    df_stats_i$n <- nrow(df_i)
+  }
+  
+  list_group_summaries[[i]] <- df_stats_i
+  
 }
 
 df_group_summaries <- bind_rows(list_group_summaries, .id = "measure")
@@ -4001,7 +3873,7 @@ df_group_summaries <- bind_rows(list_group_summaries, .id = "measure")
 ```
 
 ```{r}
-df_results <- df_corrected %>% 
+df_results <- df_results_all %>% 
   mutate(comparison_mean = 0, 
          comparison_sd = 0, 
          reference_mean = 0,
@@ -4059,7 +3931,11 @@ write_csv(df_results_export, outfile)
 ## Results table 1
 
 ```{r}
-measures_table_1 <- c("Adaptive Function Composite", "Full-scale IQ", "ADOS CSS", "ADHD", "Anxiety", "Depression", "Sleep", "Seizures", "SSP", "SRS", "SCQ", "CCC2 Pragmatic Language", "CCC2 Structural Language", "RBS Overall", "CBCL Internalizing", "CBCL Externalizing")
+measures_table_1 <- c("Adaptive Function Composite", "Full-scale IQ", "ADOS CSS",
+                      "ADHD", "Anxiety", "Depression", "Sleep", "Seizures", 
+                      "SSP", "SRS", "SCQ", 
+                      "CCC2 Pragmatic Language", "CCC2 Structural Language",
+                      "RBS Overall", "CBCL Internalizing", "CBCL Externalizing")
 
 df_results_table_1 <- df_results_export %>% 
   filter(Measure %in% measures_table_1)
