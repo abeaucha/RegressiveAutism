@@ -3539,7 +3539,6 @@ invisible(dev.off())
 plt_owls_combined_oe
 ```
 
-
 ### Listening Comprehension
 
 ```{r}
@@ -3586,7 +3585,6 @@ invisible(dev.off())
 plt_owls_combined_lc
 ```
 
-
 ### Oral Language Composite
 
 ```{r}
@@ -3599,10 +3597,6 @@ df_owls_combined_olc <- df_regressive_autism %>%
   mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
   select(-owls2_score, -owls_score)
 
-df_owls_combined_olc
-```
-
-```{r}
 df_owls_combined_olc_lm <- df_owls_combined_olc %>% 
   rename(y = score) %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
@@ -3636,7 +3630,6 @@ invisible(dev.off())
 
 plt_owls_combined_olc
 ```
-
 
 ## Controlling for IQ
 
