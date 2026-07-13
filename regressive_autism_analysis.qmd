@@ -329,7 +329,6 @@ df_demographics <- df_regressive_autism %>%
 
 ```
 
-
 ## Age
 
 ```{r, fig.width=9}
@@ -400,7 +399,6 @@ df_age_stats <- bind_cols(df_age_groups, df_age_total) %>%
 df_age_stats
 ```
 
-
 ## Age of regression onset
 
 ```{r age-of-onset}
@@ -452,8 +450,6 @@ df_sex_stats <- df_sex_groups %>%
 
 df_sex_stats
 ```
-
-
 
 ```{r, fig.width = 9}
 # df_sex_lr <- df_sex %>%
@@ -563,7 +559,6 @@ df_type_stats <- df_type_groups %>%
 df_type_stats
 ```
 
-
 ## Cohort
 
 ```{r}
@@ -616,7 +611,6 @@ outfile <- "demographics_table_1.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_demographics_stats, outfile)
 ```
-
 
 ------------------------------------------------------------------------
 
@@ -3496,6 +3490,152 @@ invisible(dev.off())
 plt_owls_oc
 ```
 
+## OWLS combined
+
+### Oral Expression
+
+```{r}
+df_owls_combined_oe <- df_regressive_autism %>% 
+  select(ID, Language, Other) %>% 
+  left_join(df_owls2_oe, by = "ID") %>% 
+  rename(owls2_score = score) %>% 
+  left_join(df_owls_oe, by = "ID") %>% 
+  rename(owls_score = score) %>% 
+  mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
+  select(-owls2_score, -owls_score)
+
+
+df_owls_combined_oe_lm <- df_owls_combined_oe %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_combined_oe <- evaluate_model(x = df_owls_combined_oe_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_combined_oe_heatmap <- contrasts_heatmap(x = list_owls_combined_oe$contrasts)
+
+plt_owls_combined_oe_heatmap <- list_owls_combined_oe_heatmap$plot
+
+
+plt_owls_combined_oe_scatter <- regression_scatter(model = list_owls_combined_oe, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_combined_oe_scatter <- plt_owls_combined_oe_scatter +
+labs(y = "Oral Expression")
+
+plt_owls_combined_oe <- plt_owls_combined_oe_scatter + plt_owls_combined_oe_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS Combined Oral Expression vs. Regression Status")
+
+outfile <- "owls_combined_oe.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_combined_oe)
+invisible(dev.off())
+
+plt_owls_combined_oe
+```
+
+
+### Listening Comprehension
+
+```{r}
+df_owls_combined_lc <- df_regressive_autism %>% 
+  select(ID, Language, Other) %>% 
+  left_join(df_owls2_lc, by = "ID") %>% 
+  rename(owls2_score = score) %>% 
+  left_join(df_owls_lc, by = "ID") %>% 
+  rename(owls_score = score) %>% 
+  mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
+  select(-owls2_score, -owls_score)
+
+df_owls_combined_lc_lm <- df_owls_combined_lc %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_combined_lc <- evaluate_model(x = df_owls_combined_lc_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_combined_lc_heatmap <- contrasts_heatmap(x = list_owls_combined_lc$contrasts)
+
+plt_owls_combined_lc_heatmap <- list_owls_combined_lc_heatmap$plot
+
+
+plt_owls_combined_lc_scatter <- regression_scatter(model = list_owls_combined_lc, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_combined_lc_scatter <- plt_owls_combined_lc_scatter +
+labs(y = "Listening Comprehension")
+
+plt_owls_combined_lc <- plt_owls_combined_lc_scatter + plt_owls_combined_lc_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS Combined Listening Comprehension vs. Regression Status")
+
+outfile <- "owls_combined_lc.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_combined_lc)
+invisible(dev.off())
+
+plt_owls_combined_lc
+```
+
+
+### Oral Language Composite
+
+```{r}
+df_owls_combined_olc <- df_regressive_autism %>% 
+  select(ID, Language, Other) %>% 
+  left_join(df_owls2_olc, by = "ID") %>% 
+  rename(owls2_score = score) %>% 
+  left_join(df_owls_oc, by = "ID") %>% 
+  rename(owls_score = score) %>% 
+  mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
+  select(-owls2_score, -owls_score)
+
+df_owls_combined_olc
+```
+
+```{r}
+df_owls_combined_olc_lm <- df_owls_combined_olc %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other))
+
+list_owls_combined_olc <- evaluate_model(x = df_owls_combined_olc_lm, type = "mixed-effects")
+
+# Generate heatmap from group contrasts
+list_owls_combined_olc_heatmap <- contrasts_heatmap(x = list_owls_combined_olc$contrasts)
+
+plt_owls_combined_olc_heatmap <- list_owls_combined_olc_heatmap$plot
+
+
+plt_owls_combined_olc_scatter <- regression_scatter(model = list_owls_combined_olc, 
+                                          groups = df_regressive_groups,
+                                          point_alpha_values = c(0.22, 0.4, 0.4, 0.4))
+
+plt_owls_combined_olc_scatter <- plt_owls_combined_olc_scatter +
+labs(y = "Oral Language Composite")
+
+plt_owls_combined_olc <- plt_owls_combined_olc_scatter + plt_owls_combined_olc_heatmap +
+  plot_layout(widths = c(0.7, 0.3)) +
+  plot_annotation(title = "OWLS Combined Oral Language Composite vs. Regression Status")
+
+outfile <- "owls_combined_olc.pdf"
+outfile <- file.path(output_dir, outfile)
+pdf(file = outfile, 
+    width = unit(10, "in"),
+    height = unit(4.5, "in"))
+print(plt_owls_combined_olc)
+invisible(dev.off())
+
+plt_owls_combined_olc
+```
 
 
 ## Controlling for IQ
@@ -4115,9 +4255,9 @@ list_results_init <- list("Adaptive Function Composite" = list_adaptive,
                           "CTOPP Phonological Awareness" = list_ctopp_pa,
                           "CTOPP Phonological Memory" = list_ctopp_pm,
                           "CTOPP Rapid Naming" = list_ctopp_rn,
-                          "OWLS-2 Oral Expression" = list_owls2_oe,
-                          "OWLS-2 Listening Comprehension" = list_owls2_lc,
-                          "OWLS-2 Oral Language Composite" = list_owls2_olc,
+                          "OWLS Oral Expression" = list_owls_combined_oe,
+                          "OWLS Listening Comprehension" = list_owls_combined_lc,
+                          "OWLS Oral Language Composite" = list_owls_combined_olc,
                           "RBS Overall" = list_rbs_all,
                           "RBS Stereotyped" = list_rbs_stt,
                           "RBS Sameness" = list_rbs_smt,
