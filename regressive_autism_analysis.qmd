@@ -409,8 +409,19 @@ age_onset_mean <- df_onset %>%
   pull(Age_Onset) %>% 
   mean()
 
-message("Mean age of onset: ", round(age_onset_mean, 1), " months")
+age_onset_sd <- df_onset %>% 
+  pull(Age_Onset) %>% 
+  sd()
+
+age_onset_lab <- paste0(round(age_onset_mean, 1), 
+                        " (", round(age_onset_sd, 1), ")")
+  
+message("Mean (SD) age of onset (in months): ", age_onset_lab)
+
+age_onset_range <- range(df_onset$Age_Onset)
+message("Age of onset range (in months): ", str_flatten(age_onset_range, collapse = " - "))
 ```
+
 
 ------------------------------------------------------------------------
 
@@ -1955,6 +1966,19 @@ invisible(dev.off())
 
 plt_seizures
 ```
+
+```{r}
+list_seizures$emmeans
+```
+```{r}
+sum(df_seizures_lr$y)/nrow(df_seizures_lr)
+```
+
+```{r}
+list_seizures$contrasts
+```
+
+
 
 ## Seizures in three age bins
 
@@ -4266,7 +4290,7 @@ list_results_all <- vector(mode = "list", length = length(list_results_init))
 names(list_results_all) <- names(list_results_init)
 for (i in 1:length(list_results_all)) {
   
-  x <- list_results_init[[i]]$contrasts #%>% 
+  x <- list_results_init[[i]]$contrasts 
   type <- list_results_init[[i]]$type
   
   if (type %in% c("linear", "mixed-effects")) {
@@ -4461,6 +4485,7 @@ outfile <- file.path("data", outfile)
 write_csv(df_results_table_1, outfile)
 ```
 
+
 ## Results table 2
 
 ```{r}
@@ -4476,3 +4501,66 @@ outfile <- "results_table_2.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_results_table_2, outfile)
 ```
+
+
+## Results table 3
+
+```{r}
+df_results
+```
+
+
+```{r}
+df_results_subtype <- df_results %>%
+  filter(Comparison %in% c("Language", "Other", "Both"), Reference == "None") %>% 
+  arrange(variable, Reference, Comparison) %>% 
+  mutate(`Comparison Group Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")"),
+         `Reference Group Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")"),
+         `Model Estimate (SE)` = paste0(round(estimate, 2), " (", round(SE, 2), ")")) %>% 
+  select(Measure = variable, `Sample Size` = n, Contrast = Label, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`, `Model Estimate (SE)`, p.value)
+
+df_results_subtype
+```
+
+```{r}
+df_results_subtype %>% 
+  select(Measure, Contrast, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`) %>% 
+  pivot_wider(id_cols = c("Measure", "Reference Group Mean (SD)"), names_from = "Contrast", values_from = "Comparison Group Mean (SD)")
+```
+
+```{r}
+summary(aov(list_adaptive$model))
+```
+```{r}
+anova(list_adaptive$model)
+```
+
+```{r}
+summary(list_adaptive$model)
+```
+
+```{r}
+model <- list_adaptive$model
+emm <- emmeans(model, ~ Language*Other) 
+ctr <- contrast(emm, method = "eff")
+test(ctr, joint = TRUE)
+```
+```{r}
+anova(lm(y ~ interaction(Language, Other), data = list_anxiety$model$model))
+```
+
+
+```{r}
+list_results_subtypes <- vector(mode = "list", length = length(list_results_init))
+names(list_results_subtypes) <- names(list_results_init)
+for (i in 1:length(list_results_subtypes)) {}
+i <- 
+
+
+
+test_results <- test(contrast(list_results_init[[i]]$emmeans, "eff"), joint = TRUE)
+
+test_results
+```
+
+
