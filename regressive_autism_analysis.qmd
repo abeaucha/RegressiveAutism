@@ -310,24 +310,34 @@ df_regressive_autism %>%
 
 ```{r}
 mssng_file <- "data/MSSNG_DB7_metadata.tsv"
-df_mssng_metadata <- as_tibble(read.csv(mssng_file, sep = "\t"))
+df_mssng_metadata_init <- as_tibble(read.csv(mssng_file, sep = "\t"))
 
-df_mssng_metadata <- df_mssng_metadata %>% 
+df_mssng_metadata <- df_mssng_metadata_init %>% 
+  mutate(POND_sample_chr = Other.information %>% 
+           str_extract("POND_sample=[a-z]+;") %>% 
+           str_remove(";") %>% 
+           str_remove("POND_sample=")) %>%  
+  mutate(POND_sample = POND_sample_chr == "true") %>% 
+  mutate(POND_ID = Other.information %>% 
+           str_extract("POND_ID=[0-9]+;") %>% 
+                      str_remove(";") %>% 
+           str_remove("POND_ID=")) %>% 
   select(ID = Individual.ID, Sex_MSSNG = Sex, 
          Ancestry = Predicted.ancestry, 
-         Type = Family.type, Cohort) %>% 
+         Type = Family.type, Cohort, POND_sample, POND_ID) %>% 
   mutate(Sex_MSSNG = ifelse(Sex_MSSNG == "male", "M", "F"))
 
 df_demographics <- df_regressive_autism %>% 
   select(ID, Language, Other, ADIR_Age, Sex) %>% 
   left_join(df_mssng_metadata, by = "ID") %>% 
+  mutate(Cohort = ifelse(is.na(Cohort), "AGRE", Cohort)) %>% 
   mutate(Sex = ifelse(is.na(Sex), Sex_MSSNG, Sex)) %>% 
   select(-Sex_MSSNG) %>% 
   mutate(Sex = ifelse(Sex == "M", "Male", "Female")) %>% 
   mutate(Regression = Language | Other) %>%
   mutate(Regression = ifelse(Regression, "Regressive", "Non-regressive"))
-
 ```
+
 
 ## Age
 
@@ -569,15 +579,27 @@ df_type_stats <- df_type_groups %>%
 df_type_stats
 ```
 
+
 ## Cohort
 
 ```{r}
+df_pond_cohorts <- df_demographics %>% 
+  filter(!is.na(Regression)) %>% 
+  select(Cohort, POND_sample) %>% 
+  filter(POND_sample) %>% 
+  group_by(Cohort) %>% 
+  count() %>% 
+  ungroup() %>% 
+  rename(POND = n)
+
 df_cohort_total <- df_demographics %>% 
   filter(!is.na(Regression)) %>% 
   mutate(n_total = nrow(.)) %>% 
   group_by(Cohort) %>% 
   summarise(Total = n()) %>% 
   ungroup() %>% 
+  left_join(df_pond_cohorts, by = "Cohort") %>% 
+  mutate(POND = ifelse(is.na(POND), 0, POND)) %>% 
   arrange(Cohort)
 
 df_cohort_groups <- df_demographics %>%
@@ -595,25 +617,53 @@ df_cohort_groups <- df_demographics %>%
   mutate(percent = round(prop*100, 1)) %>% 
   mutate(Label = paste0(n, " (", percent, "%)")) %>% 
   select(Regression, Cohort, Label) %>% 
-  pivot_wider(id_cols = "Cohort", names_from = "Regression", values_from = "Label") %>% 
+  pivot_wider(id_cols = "Cohort", names_from = "Regression", values_from = "Label") %>%
   arrange(Cohort)
 
 df_cohort_stats <- df_cohort_groups %>% 
   left_join(df_cohort_total, by = "Cohort") %>% 
-  mutate(Cohort = ifelse(is.na(Cohort), "Missing", Cohort)) %>% 
+  mutate(Cohort = ifelse(is.na(Cohort), "AGRE", Cohort)) %>% 
   mutate(Measure = "MSSNG Cohort (N, %)") %>%
   mutate(Total = as.character(Total)) %>% 
-  select(Measure, Group = Cohort, `Non-regressive`, Regressive, Total)
+  select(Measure, Group = Cohort, `Non-regressive`, Regressive, Total, POND)
 
 df_cohort_stats
 ```
+
+### POND Information
+
+```{r}
+df_mssng_metadata %>% 
+  filter(POND_sample) %>% 
+  nrow()
+```
+
+```{r}
+df_mssng_metadata %>% 
+  filter(!is.na(POND_ID)) %>% 
+  nrow()
+```
+
+```{r}
+df_demographics %>% 
+  filter(POND_sample) %>% 
+  nrow()
+```
+
+```{r}
+df_demographics %>% 
+  filter(!is.na(POND_ID)) %>% 
+  nrow()
+```
+
+
 
 ## Demographics Table 1
 
 ```{r}
 df_demographics_stats <- bind_rows(df_age_stats, 
                                    df_sex_stats,
-                                   df_ancestry_stats,
+                                   # df_ancestry_stats,
                                    df_type_stats,
                                    df_cohort_stats)
 
