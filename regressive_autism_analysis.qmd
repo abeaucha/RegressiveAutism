@@ -422,7 +422,6 @@ age_onset_range <- range(df_onset$Age_Onset)
 message("Age of onset range (in months): ", str_flatten(age_onset_range, collapse = " - "))
 ```
 
-
 ------------------------------------------------------------------------
 
 ## Sex
@@ -1970,6 +1969,7 @@ plt_seizures
 ```{r}
 list_seizures$emmeans
 ```
+
 ```{r}
 sum(df_seizures_lr$y)/nrow(df_seizures_lr)
 ```
@@ -1977,8 +1977,6 @@ sum(df_seizures_lr$y)/nrow(df_seizures_lr)
 ```{r}
 list_seizures$contrasts
 ```
-
-
 
 ## Seizures in three age bins
 
@@ -4485,7 +4483,6 @@ outfile <- file.path("data", outfile)
 write_csv(df_results_table_1, outfile)
 ```
 
-
 ## Results table 2
 
 ```{r}
@@ -4502,65 +4499,45 @@ outfile <- file.path("data", outfile)
 write_csv(df_results_table_2, outfile)
 ```
 
-
 ## Results table 3
 
 ```{r}
-df_results
-```
+df_results_control <- df_results %>% 
+  filter(Reference == "None") %>% 
+  select(variable, n, reference_mean, reference_sd) %>% 
+  mutate(`Non-Regressive Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")")) %>% 
+  distinct() %>% 
+  select(variable, n, `Non-Regressive Mean (SD)`)
 
+df_results_language <- df_results %>% 
+  filter(Reference == "None", Comparison == "Language") %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+    mutate(`Language Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
+  rename(`Language Regression p-value` = p.value) %>% 
+  select(variable, `Language Regression Mean (SD)`, `Language Regression p-value`)
 
-```{r}
-df_results_subtype <- df_results %>%
-  filter(Comparison %in% c("Language", "Other", "Both"), Reference == "None") %>% 
-  arrange(variable, Reference, Comparison) %>% 
-  mutate(`Comparison Group Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")"),
-         `Reference Group Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")"),
-         `Model Estimate (SE)` = paste0(round(estimate, 2), " (", round(SE, 2), ")")) %>% 
-  select(Measure = variable, `Sample Size` = n, Contrast = Label, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`, `Model Estimate (SE)`, p.value)
+df_results_other <- df_results %>% 
+  filter(Reference == "None", Comparison == "Other") %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+    mutate(`Non-Language Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
+  rename(`Non-Language Regression p-value` = p.value) %>% 
+  select(variable, `Non-Language Regression Mean (SD)`, `Non-Language Regression p-value`)
 
-df_results_subtype
-```
+df_results_both <- df_results %>% 
+  filter(Reference == "None", Comparison == "Both") %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+    mutate(`Both Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
+  rename(`Both Regression p-value` = p.value) %>% 
+  select(variable, `Both Regression Mean (SD)`, `Both Regression p-value`)
 
-```{r}
-df_results_subtype %>% 
-  select(Measure, Contrast, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`) %>% 
-  pivot_wider(id_cols = c("Measure", "Reference Group Mean (SD)"), names_from = "Contrast", values_from = "Comparison Group Mean (SD)")
-```
+df_results_subtype <- df_results_control %>% 
+  left_join(df_results_language, by = "variable") %>% 
+  left_join(df_results_other, by = "variable") %>% 
+  left_join(df_results_both, by = "variable")
 
-```{r}
-summary(aov(list_adaptive$model))
-```
-```{r}
-anova(list_adaptive$model)
-```
-
-```{r}
-summary(list_adaptive$model)
-```
-
-```{r}
-model <- list_adaptive$model
-emm <- emmeans(model, ~ Language*Other) 
-ctr <- contrast(emm, method = "eff")
-test(ctr, joint = TRUE)
-```
-```{r}
-anova(lm(y ~ interaction(Language, Other), data = list_anxiety$model$model))
-```
-
-
-```{r}
-list_results_subtypes <- vector(mode = "list", length = length(list_results_init))
-names(list_results_subtypes) <- names(list_results_init)
-for (i in 1:length(list_results_subtypes)) {}
-i <- 
-
-
-
-test_results <- test(contrast(list_results_init[[i]]$emmeans, "eff"), joint = TRUE)
-
-test_results
+outfile <- "results_table_subtypes.csv"
+outfile <- file.path("data", outfile)
+write_csv(df_results_subtype, outfile)
 ```
 
 
