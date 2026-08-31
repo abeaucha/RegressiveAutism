@@ -338,7 +338,6 @@ df_demographics <- df_regressive_autism %>%
   mutate(Regression = ifelse(Regression, "Regressive", "Non-regressive"))
 ```
 
-
 ## Age
 
 ```{r, fig.width=9}
@@ -579,7 +578,6 @@ df_type_stats <- df_type_groups %>%
 df_type_stats
 ```
 
-
 ## Cohort
 
 ```{r}
@@ -656,8 +654,6 @@ df_demographics %>%
   nrow()
 ```
 
-
-
 ## Demographics Table 1
 
 ```{r}
@@ -692,7 +688,9 @@ df_adaptive_lm <- df_adaptive %>%
          Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_adaptive_lm, groups = df_regressive_groups)
+df_adaptive_n <- compute_group_summaries(x = df_adaptive_lm, groups = df_regressive_groups)
+
+df_adaptive_n
 ```
 
 ```{r, fig.width=9}
@@ -700,6 +698,7 @@ compute_group_summaries(x = df_adaptive_lm, groups = df_regressive_groups)
 
 # Evaluate model
 list_adaptive <- evaluate_model(x = df_adaptive_lm)
+list_adaptive[["sample"]] <- df_adaptive_n
 
 # Generate heatmap from group contrasts
 list_adaptive_heatmap <- contrasts_heatmap(x = list_adaptive$contrasts)
@@ -751,7 +750,10 @@ df_adaptive_soc_lm <- df_adaptive_soc %>%
          Language, Other) %>% 
   filter(!is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_adaptive_soc_lm, groups = df_regressive_groups)
+df_adaptive_soc_n <- compute_group_summaries(x = df_adaptive_soc_lm, 
+                                             groups = df_regressive_groups)
+
+df_adaptive_soc_n
 ```
 
 ```{r, fig.width=9}
@@ -759,6 +761,7 @@ compute_group_summaries(x = df_adaptive_soc_lm, groups = df_regressive_groups)
 
 # Evaluate model
 list_adaptive_soc <- evaluate_model(x = df_adaptive_soc_lm)
+list_adaptive_soc[["sample"]] <- df_adaptive_soc_n
 
 # Generate heatmap from group contrasts
 list_adaptive_soc_heatmap <- contrasts_heatmap(x = list_adaptive_soc$contrasts)
@@ -806,13 +809,16 @@ df_IQ <- df_regressive_autism %>%
 df_IQ_lm <- df_IQ %>% 
   select(ID, y = IQ, Language, Other)  
 
-compute_group_summaries(x = df_IQ_lm, groups = df_regressive_groups)
+df_IQ_n <- compute_group_summaries(x = df_IQ_lm, groups = df_regressive_groups)
+
+df_IQ_n
 ```
 
 ```{r iq-plot}
 #| fig-width: 9 
 
 list_IQ <- evaluate_model(x = df_IQ_lm)
+list_IQ[["sample"]] <- df_IQ_n
 
 list_IQ_heatmap <- contrasts_heatmap(x = list_IQ$contrasts)
 
@@ -895,9 +901,10 @@ df_ADOS_OTS %>%
 # Filter for participants with adaptive function scores
 df_ADOS_CSS_lm <- df_ADOS_CSS %>% 
   select(ID, y = ADOS_CSS, 
-         Language, Other)  
+         Language, Other) 
 
 list_ADOS_CSS <- evaluate_model(x = df_ADOS_CSS_lm)
+list_ADOS_CSS[["sample"]] <- df_ADOS_CSS_n
 
 list_ADOS_CSS_heatmap <- contrasts_heatmap(x = list_ADOS_CSS$contrasts)
 
@@ -1414,7 +1421,9 @@ df_ADHD <- df_regressive_autism %>%
   select(ID, Language, Other, ADHD) %>% 
   filter(!is.na(ADHD), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_ADHD, groups = df_regressive_groups)
+df_ADHD_n <- compute_group_summaries(x = df_ADHD, groups = df_regressive_groups)
+
+df_ADHD_n
 ```
 
 ```{r adhd-plot, fig.width = 9}
@@ -1423,7 +1432,7 @@ df_ADHD_lr <- df_ADHD %>%
          Language, Other) 
 
 list_ADHD <- evaluate_model(x = df_ADHD_lr, type = "logistic")
-
+list_ADHD[["sample"]] <- df_ADHD_n
 
 list_ADHD_heatmap <- contrasts_heatmap(x = list_ADHD$contrasts)
 
@@ -1506,7 +1515,9 @@ df_anxiety <- df_regressive_autism %>%
   select(ID, Language, Other, Anxiety) %>% 
   filter(!is.na(Anxiety), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_anxiety, groups = df_regressive_groups)
+df_anxiety_n <- compute_group_summaries(x = df_anxiety, groups = df_regressive_groups)
+
+df_anxiety_n
 ```
 
 ```{r anxiety-plot, fig.width = 9}
@@ -1515,7 +1526,7 @@ df_anxiety_lr <- df_anxiety %>%
          Language, Other) 
 
 list_anxiety <- evaluate_model(x = df_anxiety_lr, type = "logistic")
-
+list_anxiety[["sample"]] <- df_anxiety_n
 
 list_anxiety_heatmap <- contrasts_heatmap(x = list_anxiety$contrasts)
 
@@ -1555,7 +1566,7 @@ summary(list_anxiety$model)
 file <- "data/processed/Anxiety/anxiety_cbcl.csv"
 df_anxiety_cbcl <- read_csv(file, show_col_types = FALSE)
 
-df_anxiety_cbcl %>% 
+df_anxiety_cbcl_n <- df_anxiety_cbcl %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -1564,6 +1575,8 @@ df_anxiety_cbcl %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_anxiety_cbcl_n
 ```
 
 ```{r anxiety-cbcl-plot, fig.width = 9}
@@ -1575,6 +1588,7 @@ df_anxiety_cbcl_lm <- df_anxiety_cbcl %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_anxiety_cbcl <- evaluate_model(x = df_anxiety_cbcl_lm, type = "mixed-effects")
+list_anxiety_cbcl[["sample"]] <- df_anxiety_cbcl_n
 
 # Generate heatmap from group contrasts
 list_anxiety_cbcl_heatmap <- contrasts_heatmap(x = list_anxiety_cbcl$contrasts)
@@ -1612,7 +1626,7 @@ plt_anxiety_cbcl
 file <- "data/processed/Anxiety/anxiety_rcads.csv"
 df_anxiety_rcads <- read_csv(file, show_col_types = FALSE)
 
-df_anxiety_rcads %>% 
+df_anxiety_rcads_n <- df_anxiety_rcads %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -1621,6 +1635,8 @@ df_anxiety_rcads %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_anxiety_rcads_n
 ```
 
 ```{r anxiety-rcads-plot, fig.width = 9}
@@ -1635,6 +1651,7 @@ df_anxiety_rcads_lm <- df_anxiety_rcads %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_anxiety_rcads <- evaluate_model(x = df_anxiety_rcads_lm, type = "linear")
+list_anxiety_rcads[["sample"]] <- df_anxiety_rcads_n
 
 # Generate heatmap from group contrasts
 list_anxiety_rcads_heatmap <- contrasts_heatmap(x = list_anxiety_rcads$contrasts)
@@ -1672,7 +1689,7 @@ plt_anxiety_rcads
 file <- "data/processed/Anxiety/anxiety_spencep.csv"
 df_anxiety_spencep <- read_csv(file, show_col_types = FALSE)
 
-df_anxiety_spencep %>% 
+df_anxiety_spencep_n <- df_anxiety_spencep %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -1681,6 +1698,8 @@ df_anxiety_spencep %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_anxiety_spencep_n
 ```
 
 ```{r anxiety-spence-plot, fig.width = 9}
@@ -1695,6 +1714,7 @@ df_anxiety_spencep_lm <- df_anxiety_spencep %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_anxiety_spencep <- evaluate_model(x = df_anxiety_spencep_lm, type = "linear")
+list_anxiety_spencep[["sample"]] <- df_anxiety_spencep_n
 
 # Generate heatmap from group contrasts
 list_anxiety_spencep_heatmap <- contrasts_heatmap(x = list_anxiety_spencep$contrasts)
@@ -1748,7 +1768,8 @@ df_depression <- df_regressive_autism %>%
   select(ID, Language, Other, Depression) %>% 
   filter(!is.na(Depression), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_depression, groups = df_regressive_groups)
+df_depression_n <- compute_group_summaries(x = df_depression, 
+                                           groups = df_regressive_groups)
 ```
 
 ```{r depression-plot, fig.width = 9}
@@ -1757,6 +1778,7 @@ df_depression_lr <- df_depression %>%
          Language, Other) 
 
 list_depression <- evaluate_model(x = df_depression_lr, type = "logistic")
+list_depression[["sample"]] <- df_depression_n
 
 
 list_depression_heatmap <- contrasts_heatmap(x = list_depression$contrasts)
@@ -1791,7 +1813,7 @@ plt_depression
 file <- "data/processed/Depression/depression_cbcl.csv"
 df_depression_cbcl <- read_csv(file, show_col_types = FALSE)
 
-df_depression_cbcl %>% 
+df_depression_cbcl_n <- df_depression_cbcl %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -1800,6 +1822,8 @@ df_depression_cbcl %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_depression_cbcl_n
 ```
 
 ```{r depression-cbcl-plot, fig.width = 9}
@@ -1811,6 +1835,7 @@ df_depression_cbcl_lm <- df_depression_cbcl %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_depression_cbcl <- evaluate_model(x = df_depression_cbcl_lm, type = "mixed-effects")
+list_depression_cbcl[["sample"]] <- df_depression_cbcl_n
 
 # Generate heatmap from group contrasts
 list_depression_cbcl_heatmap <- contrasts_heatmap(x = list_depression_cbcl$contrasts)
@@ -1848,7 +1873,7 @@ plt_depression_cbcl
 file <- "data/processed/Depression/depression_rcads.csv"
 df_depression_rcads <- read_csv(file, show_col_types = FALSE)
 
-df_depression_rcads %>% 
+df_depression_rcads_n <- df_depression_rcads %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -1857,6 +1882,8 @@ df_depression_rcads %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_depression_rcads_n
 ```
 
 ```{r depression-rcads-plot, fig.width = 9}
@@ -1871,6 +1898,7 @@ df_depression_rcads_lm <- df_depression_rcads %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_depression_rcads <- evaluate_model(x = df_depression_rcads_lm, type = "linear")
+list_depression_rcads[["sample"]] <- df_depression_rcads_n
 
 # Generate heatmap from group contrasts
 list_depression_rcads_heatmap <- contrasts_heatmap(x = list_depression_rcads$contrasts)
@@ -1924,7 +1952,9 @@ df_sleep <- df_regressive_autism %>%
   select(ID, Language, Other, Sleep) %>% 
   filter(!is.na(Sleep), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_sleep, groups = df_regressive_groups)
+df_sleep_n <- compute_group_summaries(x = df_sleep, groups = df_regressive_groups)
+
+df_sleep_n
 ```
 
 ```{r sleep-plot, fig.width = 9}
@@ -1933,7 +1963,7 @@ df_sleep_lr <- df_sleep %>%
          Language, Other) 
 
 list_sleep <- evaluate_model(x = df_sleep_lr, type = "logistic")
-
+list_sleep[["sample"]] <- df_sleep_n
 
 list_sleep_heatmap <- contrasts_heatmap(x = list_sleep$contrasts)
 
@@ -1981,7 +2011,9 @@ df_seizures <- df_regressive_autism %>%
   select(ID, Language, Other, Seizure, Seizure_Date, DOB, ADIR_Age) %>% 
   filter(!is.na(Seizure), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_seizures, groups = df_regressive_groups)
+df_seizures_n <- compute_group_summaries(x = df_seizures, groups = df_regressive_groups)
+
+df_seizures_n
 ```
 
 ```{r seizures-plot, fig.width = 9}
@@ -1990,7 +2022,7 @@ df_seizures_lr <- df_seizures %>%
          Language, Other) 
 
 list_seizures <- evaluate_model(x = df_seizures_lr, type = "logistic")
-
+list_seizures[["sample"]] <- df_seizures_n
 
 list_seizures_heatmap <- contrasts_heatmap(x = list_seizures$contrasts)
 
@@ -2498,7 +2530,10 @@ df_prematurity <- df_regressive_autism %>%
   select(ID, Language, Other, Prematurity) %>% 
   filter(!is.na(Prematurity), !is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_prematurity, groups = df_regressive_groups)
+df_prematurity_n <- compute_group_summaries(x = df_prematurity, 
+                                            groups = df_regressive_groups)
+
+df_prematurity_n
 ```
 
 ```{r fig.width = 9}
@@ -2507,7 +2542,7 @@ df_prematurity_lr <- df_prematurity %>%
          Language, Other) 
 
 list_prematurity <- evaluate_model(x = df_prematurity_lr, type = "logistic")
-
+list_prematurity[["sample"]] <- df_prematurity_n
 
 list_prematurity_heatmap <- contrasts_heatmap(x = list_prematurity$contrasts)
 
@@ -2550,7 +2585,9 @@ df_SSP_lm <- df_SSP %>%
   select(ID, y = SSP_TOTAL, 
          Language, Other) 
 
-compute_group_summaries(x = df_SSP_lm, groups = df_regressive_groups)
+df_SSP_n <- compute_group_summaries(x = df_SSP_lm, groups = df_regressive_groups)
+
+df_SSP_n
 ```
 
 ## SSP Total Score
@@ -2561,6 +2598,7 @@ compute_group_summaries(x = df_SSP_lm, groups = df_regressive_groups)
 list_SSP_TOT <- evaluate_model(x = df_SSP_lm)
 
 list_SSP_TOT_heatmap <- contrasts_heatmap(x = list_SSP_TOT$contrasts)
+list_SSP_TOT[["sample"]] <- df_SSP_n
 
 plt_SSP_TOT_heatmap <- list_SSP_TOT_heatmap$plot 
 
@@ -2682,7 +2720,9 @@ df_SRS <- df_regressive_autism %>%
   filter(!is.na(SRS_Total)) %>% 
   filter(!is.na(Language), !is.na(Other))
 
-compute_group_summaries(x = df_SRS, groups = df_regressive_groups)
+df_SRS_n <- compute_group_summaries(x = df_SRS, groups = df_regressive_groups)
+
+df_SRS_n
 ```
 
 ## SRS Total Score
@@ -2696,6 +2736,7 @@ df_SRS_lm <- df_SRS %>%
          Language, Other) 
 
 list_SRS <- evaluate_model(x = df_SRS_lm)
+list_SRS[["sample"]] <- df_SRS_n
 
 list_SRS_heatmap <- contrasts_heatmap(x = list_SRS$contrasts)
 
@@ -2787,7 +2828,7 @@ summary(model)
 file <- "data/raw/SCQ/SCQ_SCQTOT Total score.xlsx"
 df_scq <- read_excel(file)
 
-df_scq %>% 
+df_scq_n <- df_scq %>% 
   select(ID = indexid, y = numeric_value) %>% 
     inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
@@ -2797,6 +2838,8 @@ df_scq %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_scq_n
 ```
 
 ```{r fig.width = 9}
@@ -2808,6 +2851,7 @@ df_scq_lm <- df_scq %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_scq <- evaluate_model(x = df_scq_lm, type = "mixed-effects")
+list_scq[["sample"]] <- df_scq_n
 
 # Generate heatmap from group contrasts
 list_scq_heatmap <- contrasts_heatmap(x = list_scq$contrasts)
@@ -2856,7 +2900,9 @@ df_language <- df_language %>%
 df_language <- df_language %>% 
   filter(!is.na(Language), !is.na(Other), !is.na(Structural_1))
 
-compute_group_summaries(x = df_language, groups = df_regressive_groups)
+df_language_n <- compute_group_summaries(x = df_language, groups = df_regressive_groups)
+
+df_language_n
 ```
 
 ## Structural Language
@@ -2872,6 +2918,7 @@ df_lang_v1_struct_lm <- df_language %>%
          Language, Other) 
 
 list_lang_v1_struct <- evaluate_model(x = df_lang_v1_struct_lm)
+list_lang_v1_struct[["sample"]] <- df_language_n
 
 list_lang_v1_struct_heatmap <- contrasts_heatmap(x = list_lang_v1_struct$contrasts)
 
@@ -2910,6 +2957,7 @@ df_lang_v2_struct_lm <- df_language %>%
          Language, Other) 
 
 list_lang_v2_struct <- evaluate_model(x = df_lang_v2_struct_lm)
+list_lang_v2_struct[["sample"]] <- df_language_n
 
 list_lang_v2_struct_heatmap <- contrasts_heatmap(x = list_lang_v2_struct$contrasts)
 
@@ -2952,6 +3000,7 @@ df_lang_v1_prag_lm <- df_language %>%
          Language, Other) 
 
 list_lang_v1_prag <- evaluate_model(x = df_lang_v1_prag_lm)
+list_lang_v1_prag[["sample"]] <- df_language_n
 
 list_lang_v1_prag_heatmap <- contrasts_heatmap(x = list_lang_v1_prag$contrasts)
 
@@ -2990,6 +3039,7 @@ df_lang_v2_prag_lm <- df_language %>%
          Language, Other) 
 
 list_lang_v2_prag <- evaluate_model(x = df_lang_v2_prag_lm)
+list_lang_v2_prag[["sample"]] <- df_language_n
 
 list_lang_v2_prag_heatmap <- contrasts_heatmap(x = list_lang_v2_prag$contrasts)
 
@@ -3084,7 +3134,14 @@ df_ctopp_pa <- df_ctopp_pa %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_ctopp_pa_n <- df_ctopp_pa %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_ctopp_pa <- evaluate_model(x = df_ctopp_pa, type = "linear")
+list_ctopp_pa[["sample"]] <- df_ctopp_pa_n
 
 # Generate heatmap from group contrasts
 list_ctopp_pa_heatmap <- contrasts_heatmap(x = list_ctopp_pa$contrasts)
@@ -3132,7 +3189,14 @@ df_ctopp_pm <- df_ctopp_pm %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_ctopp_pm_n <- df_ctopp_pm %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_ctopp_pm <- evaluate_model(x = df_ctopp_pm, type = "linear")
+list_ctopp_pm[["sample"]] <- df_ctopp_pm_n
 
 # Generate heatmap from group contrasts
 list_ctopp_pm_heatmap <- contrasts_heatmap(x = list_ctopp_pm$contrasts)
@@ -3180,7 +3244,14 @@ df_ctopp_rn <- df_ctopp_rn %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_ctopp_rn_n <- df_ctopp_rn %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_ctopp_rn <- evaluate_model(x = df_ctopp_rn, type = "linear")
+list_ctopp_rn[["sample"]] <- df_ctopp_rn_n
 
 # Generate heatmap from group contrasts
 list_ctopp_rn_heatmap <- contrasts_heatmap(x = list_ctopp_rn$contrasts)
@@ -3217,7 +3288,7 @@ file <- "data/raw/Language/OWLS/Oral Expression standard score 2nd edition.xlsx"
 df_owls2_oe <- readxl::read_excel(file) %>% 
   select(ID = indexid, score = numeric_value)
 
-df_owls2_oe %>% 
+df_owls2_oe_n <- df_owls2_oe %>% 
   select(ID, y = score) %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
@@ -3227,6 +3298,8 @@ df_owls2_oe %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_owls2_oe_n
 ```
 
 ```{r}
@@ -3238,6 +3311,7 @@ df_owls2_oe_lm <- df_owls2_oe %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls2_oe <- evaluate_model(x = df_owls2_oe_lm, type = "mixed-effects")
+list_owls2_oe[["sample"]] <- df_owls2_oe_n
 
 # Generate heatmap from group contrasts
 list_owls2_oe_heatmap <- contrasts_heatmap(x = list_owls2_oe$contrasts)
@@ -3276,7 +3350,7 @@ file <- "data/raw/Language/OWLS/Listening Comprehension standard score 2nd editi
 df_owls2_lc <- readxl::read_excel(file) %>% 
   select(ID = indexid, score = numeric_value)
 
-df_owls2_lc %>% 
+df_owls2_lc_n <- df_owls2_lc %>% 
   select(ID, y = score) %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
@@ -3286,6 +3360,8 @@ df_owls2_lc %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_owls2_lc_n
 ```
 
 ```{r}
@@ -3297,6 +3373,7 @@ df_owls2_lc_lm <- df_owls2_lc %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls2_lc <- evaluate_model(x = df_owls2_lc_lm, type = "mixed-effects")
+list_owls2_lc[["sample"]] <- df_owls2_lc_n
 
 # Generate heatmap from group contrasts
 list_owls2_lc_heatmap <- contrasts_heatmap(x = list_owls2_lc$contrasts)
@@ -3335,7 +3412,7 @@ file <- "data/raw/Language/OWLS/Oral Language Composite standard score 2nd editi
 df_owls2_olc <- readxl::read_excel(file) %>% 
   select(ID = indexid, score = numeric_value)
 
-df_owls2_olc %>% 
+df_owls2_olc_n <- df_owls2_olc %>% 
   select(ID, y = score) %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
@@ -3345,6 +3422,8 @@ df_owls2_olc %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_owls2_olc_n
 ```
 
 ```{r}
@@ -3356,6 +3435,7 @@ df_owls2_olc_lm <- df_owls2_olc %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls2_olc <- evaluate_model(x = df_owls2_olc_lm, type = "mixed-effects")
+list_owls2_olc[["sample"]] <- df_owls2_olc_n
 
 # Generate heatmap from group contrasts
 list_owls2_olc_heatmap <- contrasts_heatmap(x = list_owls2_olc$contrasts)
@@ -3576,12 +3656,20 @@ df_owls_combined_oe <- df_regressive_autism %>%
   mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
   select(-owls2_score, -owls_score)
 
+df_owls_combined_oe_n <- df_owls_combined_oe %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
 
 df_owls_combined_oe_lm <- df_owls_combined_oe %>% 
   rename(y = score) %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls_combined_oe <- evaluate_model(x = df_owls_combined_oe_lm, type = "mixed-effects")
+list_owls_combined_oe[["sample"]] <- df_owls_combined_oe_n
 
 # Generate heatmap from group contrasts
 list_owls_combined_oe_heatmap <- contrasts_heatmap(x = list_owls_combined_oe$contrasts)
@@ -3623,11 +3711,20 @@ df_owls_combined_lc <- df_regressive_autism %>%
   mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
   select(-owls2_score, -owls_score)
 
+df_owls_combined_lc_n <- df_owls_combined_lc %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 df_owls_combined_lc_lm <- df_owls_combined_lc %>% 
   rename(y = score) %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls_combined_lc <- evaluate_model(x = df_owls_combined_lc_lm, type = "mixed-effects")
+list_owls_combined_lc[["sample"]] <- df_owls_combined_lc_n
 
 # Generate heatmap from group contrasts
 list_owls_combined_lc_heatmap <- contrasts_heatmap(x = list_owls_combined_lc$contrasts)
@@ -3669,11 +3766,20 @@ df_owls_combined_olc <- df_regressive_autism %>%
   mutate(score = ifelse(!is.na(owls2_score), owls2_score, owls_score)) %>% 
   select(-owls2_score, -owls_score)
 
+df_owls_combined_olc_n <- df_owls_combined_olc %>% 
+  rename(y = score) %>% 
+  filter(!is.na(y), !is.na(Language), !is.na(Other)) %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 df_owls_combined_olc_lm <- df_owls_combined_olc %>% 
   rename(y = score) %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_owls_combined_olc <- evaluate_model(x = df_owls_combined_olc_lm, type = "mixed-effects")
+list_owls_combined_olc[["sample"]] <- df_owls_combined_olc_n
 
 # Generate heatmap from group contrasts
 list_owls_combined_olc_heatmap <- contrasts_heatmap(x = list_owls_combined_olc$contrasts)
@@ -3752,7 +3858,7 @@ To evaluate repetitive behaviours, we used the **RBS-R**. The subset of particip
 file <- "data/processed/RBS-R/RBS.csv"
 df_rbs <- read_csv(file, show_col_types = FALSE)
 
-df_rbs %>% 
+df_rbs_n <- df_rbs %>% 
   select(ID, y = RBSR_RBSCPT) %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
@@ -3762,6 +3868,8 @@ df_rbs %>%
   sample_n(size = 1) %>% 
   ungroup() %>% 
   compute_group_summaries(groups = df_regressive_groups)
+
+df_rbs_n
 ```
 
 ## RBS-R Overall
@@ -3774,7 +3882,14 @@ df_rbs_all <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_all_n <- df_rbs_all %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_all <- evaluate_model(x = df_rbs_all, type = "mixed-effects")
+list_rbs_all[["sample"]] <- df_rbs_all_n
 
 # Generate heatmap from group contrasts
 list_rbs_all_heatmap <- contrasts_heatmap(x = list_rbs_all$contrasts)
@@ -3816,7 +3931,14 @@ df_rbs_cpt <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_cpt_n <- df_rbs_cpt %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_cpt <- evaluate_model(x = df_rbs_cpt, type = "mixed-effects")
+list_rbs_cpt[["sample"]] <- df_rbs_cpt_n
 
 # Generate heatmap from group contrasts
 list_rbs_cpt_heatmap <- contrasts_heatmap(x = list_rbs_cpt$contrasts)
@@ -3857,7 +3979,14 @@ df_rbs_rst <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_rst_n <- df_rbs_rst %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_rst <- evaluate_model(x = df_rbs_rst, type = "mixed-effects")
+list_rbs_rst[["sample"]] <- df_rbs_rst_n
 
 # Generate heatmap from group contrasts
 list_rbs_rst_heatmap <- contrasts_heatmap(x = list_rbs_rst$contrasts)
@@ -3897,7 +4026,14 @@ df_rbs_rtt <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_rtt_n <- df_rbs_rtt %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_rtt <- evaluate_model(x = df_rbs_rtt, type = "mixed-effects")
+list_rbs_rtt[["sample"]] <- df_rbs_rtt_n
 
 # Generate heatmap from group contrasts
 list_rbs_rtt_heatmap <- contrasts_heatmap(x = list_rbs_rtt$contrasts)
@@ -3937,7 +4073,14 @@ df_rbs_sit <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_sit_n <- df_rbs_sit %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_sit <- evaluate_model(x = df_rbs_sit, type = "mixed-effects")
+list_rbs_sit[["sample"]] <- df_rbs_sit_n
 
 # Generate heatmap from group contrasts
 list_rbs_sit_heatmap <- contrasts_heatmap(x = list_rbs_sit$contrasts)
@@ -3977,7 +4120,14 @@ df_rbs_smt <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_smt_n <- df_rbs_smt %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_smt <- evaluate_model(x = df_rbs_smt, type = "mixed-effects")
+list_rbs_smt[["sample"]] <- df_rbs_smt_n
 
 # Generate heatmap from group contrasts
 list_rbs_smt_heatmap <- contrasts_heatmap(x = list_rbs_smt$contrasts)
@@ -4017,7 +4167,14 @@ df_rbs_stt <- df_rbs %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_stt_n <- df_rbs_stt %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_stt <- evaluate_model(x = df_rbs_stt, type = "mixed-effects")
+list_rbs_stt[["sample"]] <- df_rbs_stt_n
 
 # Generate heatmap from group contrasts
 list_rbs_stt_heatmap <- contrasts_heatmap(x = list_rbs_stt$contrasts)
@@ -4146,8 +4303,15 @@ df_rbs_endorsed_lm <- df_rbs_endorsed %>%
             by = "ID") %>% 
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
+df_rbs_endorsed_n <- df_rbs_endorsed_lm %>% 
+  group_by(ID) %>% 
+  sample_n(size = 1) %>% 
+  ungroup() %>% 
+  compute_group_summaries(groups = df_regressive_groups)
+
 list_rbs_endorsed <- evaluate_model(x = df_rbs_endorsed_lm,
                                        type = "mixed-effects")
+list_rbs_endorsed[["sample"]] <- df_rbs_endorsed_n
 
 # Generate heatmap from group contrasts
 list_rbs_endorsed_heatmap <- contrasts_heatmap(x = list_rbs_endorsed$contrasts)
@@ -4185,7 +4349,7 @@ plt_rbs_endorsed
 file <- "data/processed/Externalizing/externalizing.csv"
 df_cbcl_ep <- read_csv(file, show_col_types = FALSE)
 
-df_cbcl_ep %>% 
+df_cbcl_ep_n <- df_cbcl_ep %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -4205,6 +4369,7 @@ df_cbcl_ep_lm <- df_cbcl_ep %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_cbcl_ep <- evaluate_model(x = df_cbcl_ep_lm, type = "mixed-effects")
+list_cbcl_ep[["sample"]] <- df_cbcl_ep_n
 
 # Generate heatmap from group contrasts
 list_cbcl_ep_heatmap <- contrasts_heatmap(x = list_cbcl_ep$contrasts)
@@ -4242,7 +4407,7 @@ plt_cbcl_ep
 file <- "data/processed/Internalizing/internalizing.csv"
 df_cbcl_ip <- read_csv(file, show_col_types = FALSE)
 
-df_cbcl_ip %>% 
+df_cbcl_ip_n <- df_cbcl_ip %>% 
   inner_join(df_regressive_autism %>% 
                select(ID, Language, Other),
              by = "ID") %>% 
@@ -4262,6 +4427,7 @@ df_cbcl_ip_lm <- df_cbcl_ip %>%
   filter(!is.na(y), !is.na(Language), !is.na(Other))
 
 list_cbcl_ip <- evaluate_model(x = df_cbcl_ip_lm, type = "mixed-effects")
+list_cbcl_ip[["sample"]] <- df_cbcl_ip_n
 
 # Generate heatmap from group contrasts
 list_cbcl_ip_heatmap <- contrasts_heatmap(x = list_cbcl_ip$contrasts)
@@ -4300,7 +4466,6 @@ list_results_init <- list("Adaptive Function Composite" = list_adaptive,
                           "Social Adaptive Function" = list_adaptive_soc,
                           "Full-scale IQ" = list_IQ,
                           "ADOS CSS" = list_ADOS_CSS,
-                          # "ADOS OTS" = list_ADOS_OTS,
                           "ADHD" = list_ADHD,
                           "Anxiety" = list_anxiety,
                           "Anxiety CBCL" = list_anxiety_cbcl,
@@ -4311,7 +4476,6 @@ list_results_init <- list("Adaptive Function Composite" = list_adaptive,
                           "Depression RCADS" = list_depression_rcads,
                           "Sleep" = list_sleep,
                           "Seizures" = list_seizures,
-                          # "Prematurity" = list_prematurity,
                           "SSP" = list_SSP_TOT,
                           "SRS" = list_SRS,
                           "SCQ" = list_scq,
@@ -4443,10 +4607,21 @@ for (i in 1:length(list_group_summaries)) {
   )
   
   if (list_results_init[[i]]$type == "mixed-effects") {
-    df_stats_i$n <- df_i %>% pull(ID) %>% unique() %>% length()
+    df_stats_i$n_total <- df_i %>% pull(ID) %>% unique() %>% length()
   } else {
-    df_stats_i$n <- nrow(df_i)
+    df_stats_i$n_total <- nrow(df_i)
   }
+  
+  df_sample_sizes_i <- list_results_init[[i]][["sample"]] %>% 
+    filter(Group != "Total")
+  
+  df_sample_sizes_i <- df_sample_sizes_i %>% 
+    bind_rows(df_sample_sizes_i %>% 
+                filter(Group != "None")  %>% 
+                summarise(n = sum(n)) %>% 
+                mutate(Group = "Any"))
+  
+  df_stats_i <- left_join(df_stats_i, df_sample_sizes_i, by = "Group")
   
   list_group_summaries[[i]] <- df_stats_i
   
@@ -4454,14 +4629,17 @@ for (i in 1:length(list_group_summaries)) {
 
 df_group_summaries <- bind_rows(list_group_summaries, .id = "measure")
 
+df_group_summaries
 ```
 
 ```{r}
 df_results <- df_results_all %>% 
   mutate(comparison_mean = 0, 
          comparison_sd = 0, 
+         comparison_n = 0,
          reference_mean = 0,
          reference_sd = 0,
+         reference_n = 0,
          n = 0)
 
 for (i in 1:nrow(df_results)) {
@@ -4480,11 +4658,13 @@ for (i in 1:nrow(df_results)) {
   
   df_results[[i, "comparison_mean"]] <- df_comparison_group[["mean"]]
   df_results[[i, "comparison_sd"]] <- df_comparison_group[["SD"]]
+  df_results[[i, "comparison_n"]] <- df_comparison_group[["n"]]
   df_results[[i, "reference_mean"]] <- df_reference_group[["mean"]]
   df_results[[i, "reference_sd"]] <- df_reference_group[["SD"]]
+  df_results[[i, "reference_n"]] <- df_reference_group[["n"]]
   df_results[[i, "n"]] <- df_group_summaries %>% 
     filter(measure == measure_name) %>% 
-    pull(n) %>% 
+    pull(n_total) %>% 
     unique()
   
 }
@@ -4501,7 +4681,10 @@ df_results_export <- df_results %>%
   mutate(`Comparison Group Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")"),
          `Reference Group Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")"),
          `Model Estimate (SE)` = paste0(round(estimate, 2), " (", round(SE, 2), ")")) %>% 
-  select(Measure = variable, `Sample Size` = n, Contrast = Label, `Reference Group Mean (SD)`, `Comparison Group Mean (SD)`, `Model Estimate (SE)`, p.value, q.value)
+  select(Measure = variable, `Sample Size` = n, Contrast = Label,
+         `Reference Group Mean (SD)`, `Reference Group Size` = reference_n,
+         `Comparison Group Mean (SD)`, `Comparison Group Size` = comparison_n,
+         `Model Estimate (SE)`, p.value, q.value)
 
 df_results_export
 ```
@@ -4524,9 +4707,10 @@ measures_table_1 <- c("Adaptive Function Composite", "Full-scale IQ", "ADOS CSS"
 df_results_table_1 <- df_results_export %>% 
   filter(Measure %in% measures_table_1) %>% 
   rename(`Non-regressive Mean (SD)` = `Reference Group Mean (SD)`,
-         `Regressive Mean (SD)` = `Comparison Group Mean (SD)`) %>%  
+         `Non-regressive N` = `Reference Group Size`,
+         `Regressive Mean (SD)` = `Comparison Group Mean (SD)`,
+         `Regressive N` = `Comparison Group Size`) %>%  
   select(-Contrast)
-
 
 outfile <- "results_table_1.csv"
 outfile <- file.path("data", outfile)
@@ -4540,7 +4724,9 @@ df_results_table_2 <- df_results_export %>%
   anti_join(df_results_table_1, by = "Measure") %>% 
   select(-q.value) %>% 
     rename(`Non-regressive Mean (SD)` = `Reference Group Mean (SD)`,
-         `Regressive Mean (SD)` = `Comparison Group Mean (SD)`) %>%  
+           `Non-regressive N` = `Reference Group Size`,
+         `Regressive Mean (SD)` = `Comparison Group Mean (SD)`,
+         `Regressive N` = `Comparison Group Size`) %>%  
   select(-Contrast)
 
 
@@ -4554,31 +4740,38 @@ write_csv(df_results_table_2, outfile)
 ```{r}
 df_results_control <- df_results %>% 
   filter(Reference == "None") %>% 
-  select(variable, n, reference_mean, reference_sd) %>% 
+  select(variable, n, reference_mean, reference_sd, reference_n) %>% 
   mutate(`Non-Regressive Mean (SD)` = paste0(round(reference_mean, 2), " (", round(reference_sd, 2), ")")) %>% 
   distinct() %>% 
-  select(variable, n, `Non-Regressive Mean (SD)`)
+  select(variable, n, `Non-Regressive Mean (SD)`, `Non-Regressive N` = reference_n)
 
 df_results_language <- df_results %>% 
   filter(Reference == "None", Comparison == "Language") %>% 
-  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, comparison_n, p.value) %>% 
     mutate(`Language Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
   rename(`Language Regression p-value` = p.value) %>% 
-  select(variable, `Language Regression Mean (SD)`, `Language Regression p-value`)
+  select(variable, 
+         `Language Regression Mean (SD)`, 
+         `Language Regression N` = comparison_n,
+         `Language Regression p-value`)
 
 df_results_other <- df_results %>% 
   filter(Reference == "None", Comparison == "Other") %>% 
-  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, comparison_n, p.value) %>% 
     mutate(`Non-Language Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
   rename(`Non-Language Regression p-value` = p.value) %>% 
-  select(variable, `Non-Language Regression Mean (SD)`, `Non-Language Regression p-value`)
+  select(variable, `Non-Language Regression Mean (SD)`, 
+         `Non-Language Regression N` = comparison_n,
+         `Non-Language Regression p-value`)
 
 df_results_both <- df_results %>% 
   filter(Reference == "None", Comparison == "Both") %>% 
-  select(variable, Comparison, comparison_mean, comparison_sd, p.value) %>% 
+  select(variable, Comparison, comparison_mean, comparison_sd, comparison_n, p.value) %>% 
     mutate(`Both Regression Mean (SD)` = paste0(round(comparison_mean, 2), " (", round(comparison_sd, 2), ")")) %>% 
   rename(`Both Regression p-value` = p.value) %>% 
-  select(variable, `Both Regression Mean (SD)`, `Both Regression p-value`)
+  select(variable, `Both Regression Mean (SD)`, 
+         `Both Regression N` = comparison_n,
+         `Both Regression p-value`)
 
 df_results_subtype <- df_results_control %>% 
   left_join(df_results_language, by = "variable") %>% 
@@ -4589,5 +4782,3 @@ outfile <- "results_table_subtypes.csv"
 outfile <- file.path("data", outfile)
 write_csv(df_results_subtype, outfile)
 ```
-
-
