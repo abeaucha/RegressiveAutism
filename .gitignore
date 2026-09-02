@@ -4,7 +4,6 @@
 .vscode/
 data/
 figures/
+old/
 *.html
-ADIR_DB7_new*
-old_new_comparison.R
 .positai
