@@ -202,6 +202,65 @@ process_ADIR <- function(inputs, input_dir = "data/raw/ADI-R") {
 }
 
 
+#' Process dichotomized data
+#'
+#' @param inputs (tibble) Data frame containing columns indicating input file, 
+#' threshold for binarization, comparison direction, and column name
+#' @param input_dir (character scalar) Path to directory containing input files
+#'
+#' @returns (tibble) Data frame with dichotomous trait status across multiple 
+#' measures
+process_dichotomized_data <- function(inputs, input_dir) {
+  
+  for (i in 1:nrow(inputs)) {
+    
+    file <- inputs[[i, "file"]]  
+    file <- file.path(input_dir, file)
+    df <- read_excel(file) %>% 
+      select(ID = indexid, score = numeric_value) %>% 
+      filter(!is.na(ID), !is.na(score)) %>% 
+      group_by(ID) %>% 
+      mutate(score_max = max(score, na.rm = TRUE)) %>% 
+      ungroup() 
+    
+    if (inputs[[i, "comparison"]] == "=") {
+      df <- df %>% 
+        mutate(PASS = score_max == inputs[[i, "threshold"]]) 
+    } else if (inputs[[i, "comparison"]] == ">=") {
+      df <- df %>% 
+        mutate(PASS = score_max >= inputs[[i, "threshold"]]) 
+    } else {
+      stop()
+    }
+    
+    df <- df %>%     
+      select(ID, PASS) %>% 
+      distinct()
+    
+    colnames(df)[2] <- inputs[[i, "colname"]]
+    
+    if (i == 1) {
+      df_out <- df
+    } else {
+      df_out <- full_join(df_out, df, by = "ID")
+    }
+    
+  }
+  
+  # Calculate combined anxiety score
+  df_out_combined <- df_out %>% 
+    column_to_rownames("ID") %>% 
+    apply(1, function(x) {any(as.logical(x), na.rm = TRUE)}) %>% 
+    enframe(name = "ID", value = "PASS")
+  
+  # Join combined score to individual scores
+  df_out <- df_out %>% 
+    left_join(df_out_combined, by = "ID")
+  
+  return(df_out)
+  
+}
+
 
 #' Process ADOS data
 #'
@@ -404,237 +463,80 @@ process_ADHD_data <- function(inputs, input_dir = "data/raw/ADHD") {
 }
 
 
-#' Process anxiety data
+#' Process prematurity data
 #'
-#' @param inputs (tibble) 
-#' @param input_dir (character scalar) Path to directory containing anxiety 
+#' @param files (character vector) File names for prematurity files
+#' @param input_dir (character scalar)  Path to directory containing prematurity 
 #' input files
 #'
-#' @returns (tibble) Data frame with anxiety status across multiple measures
-process_anxiety_data <- function(inputs, input_dir = "data/raw/Anxiety") {
+#' @returns (tibble) Data frame with prematurity status across multiple measures
+process_prematurity_data <- function(files, input_dir = "data/raw/Prematurity") {
   
-  for (i in 1:nrow(inputs)) {
-    
-    file <- inputs[[i, "file"]]  
-    file <- file.path(input_dir, file)
-    df <- read_excel(file) %>% 
-      select(ID = indexid, score = numeric_value) %>% 
-      filter(!is.na(ID), !is.na(score)) %>% 
-      group_by(ID) %>% 
-      mutate(score_max = max(score, na.rm = TRUE)) %>% 
-      ungroup() 
-    
-    if (inputs[[i, "comparison"]] == "=") {
-      df <- df %>% 
-        mutate(PASS = score_max == inputs[[i, "threshold"]]) 
-    } else if (inputs[[i, "comparison"]] == ">=") {
-      df <- df %>% 
-        mutate(PASS = score_max >= inputs[[i, "threshold"]]) 
-    } else {
-      stop()
-    }
-    
-    df <- df %>%     
-      select(ID, PASS) %>% 
-      distinct()
-    
-    colnames(df)[2] <- inputs[[i, "colname"]]
-    
-    if (i == 1) {
-      df_anxiety <- df
-    } else {
-      df_anxiety <- full_join(df_anxiety, df, by = "ID")
-    }
-    
-  }
+  file <- file.path(input_dir, files[["prematurity"]])
+  df_prematurity <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value) %>% 
+    filter(!is.na(ID), !is.na(score)) %>% 
+    group_by(ID) %>% 
+    mutate(score_max = max(score, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(CLINICALINFO_PASS = score_max == 1) %>% 
+    select(ID, CLINICALINFO_PASS) %>% 
+    distinct()
   
-  # Calculate combined anxiety score
-  df_anxiety_combined <- df_anxiety %>% 
+  file <- file.path(input_dir, files[["gestational"]])
+  df_gestational <- read_excel(file) %>% 
+    select(ID = indexid, age = Fact__raw_value) %>% 
+    mutate(age = as.numeric(age)) %>% 
+    filter(age != -1)  %>% 
+    mutate(GEST_PASS = age <= 36) %>% 
+    select(ID, GEST_PASS)
+  
+  df_prematurity <- full_join(df_prematurity, df_gestational, by = "ID")
+  
+  # Calculate combined prematurity score
+  df_prematurity_combined <- df_prematurity %>% 
     column_to_rownames("ID") %>% 
     apply(1, function(x) {any(as.logical(x), na.rm = TRUE)}) %>% 
-    enframe(name = "ID", value = "Anxiety_PASS")
+    enframe(name = "ID", value = "PASS")
   
   # Join combined score to individual scores
-  df_anxiety <- df_anxiety %>% 
-    left_join(df_anxiety_combined, by = "ID")
+  df_prematurity <- df_prematurity %>% 
+    left_join(df_prematurity_combined, by = "ID")
   
-  return(df_anxiety)
+  return(df_prematurity)
   
 }
 
 
-#' Process depression data
+#' Process SSP data
 #'
-#' @param inputs (tibble) 
-#' @param input_dir (character scalar) Path to directory containing depression 
-#' input files
+#' @param files (character vector) File names for SSP sub-domain files
+#' @param input_dir (character scalar) Path to directory containing SSP input
+#' files
 #'
-#' @returns (tibble) Data frame with depression status across multiple measures
-process_depression_data <- function(inputs, input_dir = "data/raw/Depression") {
+#' @returns (tibble) Data frame containing scores for SSP sub-domains
+process_SSP_data <- function(files, input_dir = "data/raw/SSP") {
   
-  for (i in 1:nrow(inputs)) {
-    
-    file <- inputs[[i, "file"]]  
-    file <- file.path(input_dir, file)
-    df <- read_excel(file) %>% 
-      select(ID = indexid, score = numeric_value) %>% 
-      filter(!is.na(ID), !is.na(score)) %>% 
-      group_by(ID) %>% 
-      mutate(score_max = max(score, na.rm = TRUE)) %>% 
-      ungroup() 
-    
-    if (inputs[[i, "comparison"]] == "=") {
-      df <- df %>% 
-        mutate(PASS = score_max == inputs[[i, "threshold"]]) 
-    } else if (inputs[[i, "comparison"]] == ">=") {
-      df <- df %>% 
-        mutate(PASS = score_max >= inputs[[i, "threshold"]]) 
-    } else {
-      stop()
-    }
-    
-    df <- df %>%     
-      select(ID, PASS) %>% 
-      distinct()
-    
-    colnames(df)[2] <- inputs[[i, "colname"]]
-    
-    if (i == 1) {
-      df_depression <- df
-    } else {
-      df_depression <- full_join(df_depression, df, by = "ID")
-    }
-    
+  # Define an import function
+  import_SSP_file <- function(x) {
+    select(read_excel(x), ID = indexid, score = numeric_value)
   }
   
-  # Calculate combined anxiety score
-  df_depression_combined <- df_depression %>% 
-    column_to_rownames("ID") %>% 
-    apply(1, function(x) {any(as.logical(x), na.rm = TRUE)}) %>% 
-    enframe(name = "ID", value = "Depression_PASS")
+  # Extract sub-domain labels
+  labels <- names(files)
   
-  # Join combined score to individual scores
-  df_depression <- df_depression %>% 
-    left_join(df_depression_combined, by = "ID")
+  # Prepend input directory path
+  files <- file.path(input_dir, files)
   
-  return(df_depression)
+  # Re-add sub-domain labels
+  names(files) <- labels
+  
+  # Import SSP files
+  df_ssp <- files %>% 
+    map_dfr(.f = import_SSP_file, .id = "code") %>% 
+    pivot_wider(id_cols = "ID", names_from = "code", values_from = "score") 
+  
+  return(df_ssp)
   
 }
 
-
-#' Process seizures data
-#'
-#' @param inputs (tibble) 
-#' @param input_dir (character scalar) Path to directory containing seizure 
-#' input files
-#'
-#' @returns (tibble) Data frame with seizure status across multiple measures
-process_seizures_data <- function(inputs, input_dir = "data/raw/Seizures") {
-  
-  for (i in 1:nrow(inputs)) {
-    
-    file <- inputs[[i, "file"]]  
-    file <- file.path(input_dir, file)
-    df <- read_excel(file) %>% 
-      select(ID = indexid, score = numeric_value) %>% 
-      filter(!is.na(ID), !is.na(score)) %>% 
-      group_by(ID) %>% 
-      mutate(score_max = max(score, na.rm = TRUE)) %>% 
-      ungroup() 
-    
-    if (inputs[[i, "comparison"]] == "=") {
-      df <- df %>% 
-        mutate(PASS = score_max == inputs[[i, "threshold"]]) 
-    } else if (inputs[[i, "comparison"]] == ">=") {
-      df <- df %>% 
-        mutate(PASS = score_max >= inputs[[i, "threshold"]]) 
-    } else {
-      stop()
-    }
-    
-    df <- df %>%     
-      select(ID, PASS) %>% 
-      distinct()
-    
-    colnames(df)[2] <- inputs[[i, "colname"]]
-    
-    if (i == 1) {
-      df_seizures <- df
-    } else {
-      df_seizures <- full_join(df_seizures, df, by = "ID")
-    }
-    
-  }
-  
-  # Calculate combined seizures score
-  df_seizures_combined <- df_seizures %>% 
-    column_to_rownames("ID") %>% 
-    apply(1, function(x) {any(as.logical(x), na.rm = TRUE)}) %>% 
-    enframe(name = "ID", value = "Seizure_PASS")
-  
-  # Join combined score to individual scores
-  df_seizures <- df_seizures %>% 
-    left_join(df_seizures_combined, by = "ID")
-  
-  return(df_seizures)
-  
-}
-
-
-#' Process sleep data
-#'
-#' @param inputs (tibble) 
-#' @param input_dir (character scalar) Path to directory containing sleep 
-#' input files
-#'
-#' @returns (tibble) Data frame with sleep status across multiple measures
-process_sleep_data <- function(inputs, input_dir = "data/raw/Sleep") {
-  
-  for (i in 1:nrow(df_files)) {
-    
-    file <- df_files[[i, "file"]]  
-    file <- file.path(input_dir, file)
-    df <- read_excel(file) %>% 
-      select(ID = indexid, score = numeric_value) %>% 
-      filter(!is.na(ID), !is.na(score)) %>% 
-      group_by(ID) %>% 
-      mutate(score_max = max(score, na.rm = TRUE)) %>% 
-      ungroup() 
-    
-    if (df_files[[i, "comparison"]] == "=") {
-      df <- df %>% 
-        mutate(PASS = score_max == df_files[[i, "threshold"]]) 
-    } else if (df_files[[i, "comparison"]] == ">=") {
-      df <- df %>% 
-        mutate(PASS = score_max >= df_files[[i, "threshold"]]) 
-    } else {
-      stop()
-    }
-    
-    df <- df %>%     
-      select(ID, PASS) %>% 
-      distinct()
-    
-    colnames(df)[2] <- df_files[[i, "colname"]]
-    
-    if (i == 1) {
-      df_sleep <- df
-    } else {
-      df_sleep <- full_join(df_sleep, df, by = "ID")
-    }
-    
-  }
-  
-  # Calculate combined anxiety score
-  df_sleep_combined <- df_sleep %>% 
-    column_to_rownames("ID") %>% 
-    apply(1, function(x) {any(as.logical(x), na.rm = TRUE)}) %>% 
-    enframe(name = "ID", value = "Sleep_PASS")
-  
-  # Join combined score to individual scores
-  df_sleep <- df_sleep %>% 
-    left_join(df_sleep_combined, by = "ID")
-  
-  return(df_sleep)
-  
-}

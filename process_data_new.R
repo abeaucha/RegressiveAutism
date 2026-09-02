@@ -136,11 +136,13 @@ df_anxiety_files <- tibble(
 df_anxiety_files <- df_anxiety_files %>%
   filter(!(colname %in% c("CDCDBOSY", "CDCDPDX")))
 
-df_anxiety <- process_anxiety_data(inputs = df_anxiety_files,
-                                   input_dir = file.path(input_dir, "Anxiety"))
+# Process anxiety data
+df_anxiety <- process_dichotomized_data(inputs = df_anxiety_files,
+                                            input_dir = file.path(input_dir, "Anxiety"))
 
+# Subset participant ID and dichotomous anxiety status
 df_anxiety <- df_anxiety %>% 
-  select(ID, Anxiety = Anxiety_PASS)
+  select(ID, Anxiety = PASS)
 
 
 ### Import and process anxiety CBCL scores ------------------------------------
@@ -196,12 +198,13 @@ df_depression_files <- tibble(
 ) %>% 
   mutate(colname = paste0(colname, "_PASS"))
 
-
-df_depression <- process_depression_data(inputs = df_depression_files,
+# Process depression data
+df_depression <- process_dichotomized_data(inputs = df_depression_files,
                                          input_dir = file.path(input_dir, "Depression"))
 
+# Subset participant ID and dichotomous depression status
 df_depression <- df_depression %>% 
-  select(ID, Depression = Depression_PASS)
+  select(ID, Depression = PASS)
 
 
 ### Import and process depression CBCL scores ---------------------------------
@@ -251,8 +254,9 @@ df_seizures_files <- tibble(
 ) %>% 
   mutate(colname = paste0(colname, "_PASS"))
 
-df_seizures <- process_seizures_data(inputs = df_seizures_files,
-                                     input_dir = file.path(input_dir, "Seizures"))
+# Process seizures data
+df_seizures <- process_dichotomized_data(inputs = df_seizures_files,
+                                         input_dir = file.path(input_dir, "Seizures")) 
 
 # Import seizure dates data
 file <- "mssng sorted epilepsy.xlsx"
@@ -261,9 +265,10 @@ df_seizures_dates <- read_excel(file, sheet = "MSSNG co-occuring sorted Epilep")
   select(ID = indexid, Seizure_Date = testdate) %>% 
   mutate(Seizure_Date = as.Date(Seizure_Date))
 
+# Join seizures data with dates
 df_seizures <- df_seizures %>% 
   left_join(df_seizures_dates, by = "ID") %>% 
-  select(ID, Seizure = Seizure_PASS, Seizure_Date)
+  select(ID, Seizure = PASS, Seizure_Date)
 
 
 ## Import and process sleep data ----------------------------------------------
@@ -294,8 +299,47 @@ df_sleep_files <- tibble(
 ) %>% 
   mutate(colname = paste0(colname, "_PASS"))
 
-df_sleep <- process_sleep_data(inputs = df_sleep_files,
-                               input_dir = file.path(input_dir, "Sleep"))
+# Process sleep data
+df_sleep <- process_dichotomized_data(inputs = df_sleep_files,
+                                      input_dir = file.path(input_dir, "Sleep"))  
 
+# Subset participant ID and dichotomous sleep status
 df_sleep <- df_sleep %>% 
-  select(ID, Sleep = Sleep_PASS)
+  select(ID, Sleep = PASS)
+
+
+## Import and process prematurity data ----------------------------------------
+
+message("Importing and processing prematurity data...")
+
+files_prematurity <- c("prematurity" = "CLINICALINFO_ASDPREMAT.xlsx",
+                       "gestational" = "Gestational age at delivery.xlsx")
+
+df_prematurity <- process_prematurity_data(files = files_prematurity)
+
+df_prematurity <- df_prematurity %>% 
+  select(ID, Prematurity = PASS)
+
+
+## Import and process SSP sensory data ----------------------------------------
+
+message("Importing and processing SSP data...")
+
+# SSP files to import
+files_SSP <- c("SSP_AUD_FILTER" = "SSP_SSP_AUD_FILTER_RS.xlsx",
+               "SSP_LOW_ENRGY_WEAK" = "SSP_SSP_LOW_ENRGY_WEAK_RS.xlsx",
+               "SSP_MOVEMENT" = "SSP_SSP_MOVEMENT_RS.xlsx",
+               "SSP_TACTILE" = "SSP_SSP_TACTILE_RS.xlsx",
+               "SSP_TASTE_SMELL" = "SSP_SSP_TASTE_SMELL_RS.xlsx",
+               "SSP_UNDERRESP_SEEKS" = "SSP_SSP_UNDERRESP_SEEKS_RS.xlsx",
+               "SSP_VIS_AUD" = "SSP_SSP_VIS_AUD_RS.xlsx",
+               "SSP_TOTAL" = "SSP_SSP_TOTAL_RS (Feb 5, 2026 1-53-02 PM).xlsx")
+
+df_SSP <- process_SSP_data(files = files_SSP, input_dir = file.path(input_dir, "SSP"))
+
+
+## Import and process SRS socialization data ----------------------------------
+
+message("Importing and processing SRS data...")
+
+
