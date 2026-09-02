@@ -335,11 +335,24 @@ files_SSP <- c("SSP_AUD_FILTER" = "SSP_SSP_AUD_FILTER_RS.xlsx",
                "SSP_VIS_AUD" = "SSP_SSP_VIS_AUD_RS.xlsx",
                "SSP_TOTAL" = "SSP_SSP_TOTAL_RS (Feb 5, 2026 1-53-02 PM).xlsx")
 
-df_SSP <- process_SSP_data(files = files_SSP, input_dir = file.path(input_dir, "SSP"))
+# Process SSP files
+df_SSP <- process_subdomain_data(files = files_SSP, 
+                                 input_dir = file.path(input_dir, "SSP")) 
+
 
 
 ## Import and process SRS socialization data ----------------------------------
 
 message("Importing and processing SRS data...")
 
+# SRS files to import
+files_SRS <- c("SRS_Total" = "SRSPARENTREP_Total_score_SRSTOTT.xlsx",
+               "SRS_SocialCog" = "SRSPARENTREP.Social Cognition_SRSCGT.xlsx",
+               "SRS_SocialComm" = "SRSPARENTREP.Social Communication_SRSCMT.xlsx",
+               "SRS_SocialMotiv" = "SRSPARENTREP.Social Motivation_SRSMTT.xlsx",
+               "SRS_SocialAware" = "SRSPARENTREP.SocialAwarness_SRSAWT.xlsx")
+
+# Process SRS files
+df_SRS <- process_subdomain_data(files = files_SRS, 
+                                 input_dir = file.path(input_dir, "SRS")) 
 

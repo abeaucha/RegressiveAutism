@@ -262,6 +262,41 @@ process_dichotomized_data <- function(inputs, input_dir) {
 }
 
 
+#' Process sub-domain data
+#'
+#' @param files (character vector) File names for sub-domain files
+#' @param input_dir (character scalar) Path to directory containing input
+#' files
+#'
+#' @returns (tibble) Data frame containing scores for sub-domains
+process_subdomain_data <- function(files, input_dir) {
+  
+  # Define an import function
+  import_file <- function(x) {
+    select(read_excel(x), ID = indexid, score = numeric_value)
+  }
+  
+  # Extract sub-domain labels
+  labels <- names(files)
+  
+  # Prepend input directory path
+  files <- file.path(input_dir, files)
+  
+  # Re-add sub-domain labels
+  names(files) <- labels
+  
+  # Import sub-domain files
+  df_out <- files %>% 
+    map_dfr(.f = import_file, .id = "code") %>% 
+    group_by(ID, code) %>% 
+    summarise(score = mean(score), .groups = "drop") %>% 
+    pivot_wider(id_cols = "ID", names_from = "code", values_from = "score") 
+  
+  return(df_out)
+  
+}
+
+
 #' Process ADOS data
 #'
 #' @param files (character vector) File names for ADOS OTS and CSS scores
@@ -508,35 +543,4 @@ process_prematurity_data <- function(files, input_dir = "data/raw/Prematurity") 
 }
 
 
-#' Process SSP data
-#'
-#' @param files (character vector) File names for SSP sub-domain files
-#' @param input_dir (character scalar) Path to directory containing SSP input
-#' files
-#'
-#' @returns (tibble) Data frame containing scores for SSP sub-domains
-process_SSP_data <- function(files, input_dir = "data/raw/SSP") {
-  
-  # Define an import function
-  import_SSP_file <- function(x) {
-    select(read_excel(x), ID = indexid, score = numeric_value)
-  }
-  
-  # Extract sub-domain labels
-  labels <- names(files)
-  
-  # Prepend input directory path
-  files <- file.path(input_dir, files)
-  
-  # Re-add sub-domain labels
-  names(files) <- labels
-  
-  # Import SSP files
-  df_ssp <- files %>% 
-    map_dfr(.f = import_SSP_file, .id = "code") %>% 
-    pivot_wider(id_cols = "ID", names_from = "code", values_from = "score") 
-  
-  return(df_ssp)
-  
-}
 
