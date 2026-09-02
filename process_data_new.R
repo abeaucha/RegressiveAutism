@@ -66,6 +66,20 @@ df_ADIR <- process_ADIR(inputs = list_ADIR_files,
                         input_dir = file.path(input_dir, "ADI-R"))
 
 
+## Age of regression onset data -----------------------------------------------
+
+# Files containing age of onset data
+files_onset <- c("ADIWPS" = "Age Language RegressionADI_R WPS_2025-12-12T14_14_14.807924Z.xlsx",
+                 "ADI1995" = "Age of main skill regression onset ADI1995 _2025-12-12T14_37_12.773403Z.xlsx")
+
+df_onset <- process_onset_data(files = files_onset,
+                               input_dir = file.path(input_dir, "Onset"))
+
+outfile <- "age_of_onset.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_onset, outfile)
+
+
 ## Adaptive function data -----------------------------------------------------
 
 # Import overall adaptive function scores
@@ -447,6 +461,24 @@ df_RBS <- process_RBS_data(files = files_RBS,
 outfile <- "RBS.csv"
 outfile <- file.path(output_dir, outfile)
 write_csv(df_RBS, outfile)
+
+
+## CBCL externalizing and internalizing data ----------------------------------
+
+message("Importing and processing CBCL data...")
+
+# Process CBCL data
+list_cbcl <- process_CBCL_data(input_dir = file.path(input_dir, "CBCL"))
+
+# Export CBCL externalizing data
+outfile <- "CBCL_Externalizing.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(list_cbcl[["EP"]], file = outfile)
+
+# Export CBCL internalizing data
+outfile <- "CBCL_Internalizing.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(list_cbcl[["IP"]], file = outfile)
 
 
 ## Combine data ---------------------------------------------------------------

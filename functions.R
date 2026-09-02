@@ -642,3 +642,79 @@ process_RBS_data <- function(files, input_dir = "data/raw/RBS-R") {
   
 }
 
+
+#' Process CBCL data
+#'
+#' @param input_dir (character scalar)
+#'
+#' @returns (list) List containing data frames for CBCL externalizing and
+#' internalizing problem scores
+process_CBCL_data <- function(input_dir = "data/raw/CBCL") {
+  
+  file <- "CBCL618_CB68EPTS externalizing Tscores.xlsx"
+  file <- file.path(input_dir, file)
+  df_ep_618 <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value)  
+  
+  file <- "CBCL1_CBEPTS Externalizing T-score.xlsx"
+  file <- file.path(input_dir, file)
+  df_ep_15 <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value) %>% 
+    anti_join(df_ep_618, by = "ID")
+  
+  df_ep <- bind_rows(df_ep_618, df_ep_15) %>% 
+    rename(CBCL_EP_TS = score)
+  
+  
+  file <- "CBCL618_CB68IPTS 6-18y old.xlsx"
+  file <- file.path(input_dir, file)
+  df_ip_618 <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value)  
+  
+  file <- "CBCL1_CBIPTS 1-5y old.xlsx"
+  file <- file.path(input_dir, file)
+  df_ip_15 <- read_excel(file) %>% 
+    select(ID = indexid, score = numeric_value) %>% 
+    anti_join(df_ip_618, by = "ID")
+  
+  df_ip <- bind_rows(df_ip_618, df_ip_15) %>% 
+    rename(CBCL_IP_TS = score)
+  
+  return(list(EP = df_ep, IP = df_ip))
+  
+}
+
+
+#' Process age of regression onset data
+#'
+#' @param files (character vector) Files containing age of onset data
+#' @param input_dir (character scalar)  Path to directory containing input
+#' files
+#'
+#' @returns (tibble) Data frame containing age of onset 
+process_onset_data <- function(files, input_dir = "data/raw/Onset") {
+  
+  df_onset_wps <- read_excel(file.path(input_dir, files[["ADIWPS"]])) %>% 
+    select(ID = indexid, age = numeric_value) %>% 
+    group_by(ID) %>% 
+    summarise(age = min(age)) %>% 
+    ungroup()
+  
+  df_onset_1995 <- read_excel(file.path(input_dir, files[["ADI1995"]])) %>% 
+    select(ID = indexid, age = numeric_value) %>% 
+    anti_join(df_onset_wps, by = "ID") %>% 
+    group_by(ID) %>% 
+    summarise(age = min(age)) %>% 
+    ungroup()
+  
+  df_onset <- bind_rows(df_onset_wps, df_onset_1995)
+  
+  df_onset <- df_onset %>% 
+    filter(age > 0)
+  
+  df_onset <- df_onset %>% 
+    rename(Age_Onset = age)
+  
+  return(df_onset)
+  
+}
