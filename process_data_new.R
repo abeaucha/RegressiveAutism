@@ -19,7 +19,7 @@ input_dir <- "data/raw/"
 output_dir <- "data/processed/"
 
 
-## Import and process demographics data ---------------------------------------
+## Demographics data ----------------------------------------------------------
 
 message("Importing and processing demographics data...")
 
@@ -28,10 +28,11 @@ file_demographics <- file.path(input_dir, file_demographics)
 df_demographics <- process_demographics(file_demographics)
 
 
-## Import and process ADI-R data ----------------------------------------------
+## ADI-R data -----------------------------------------------------------------
 
 message("Importing and processing ADI-R data...")
 
+# List containing files and information
 list_ADIR_files <- list(
   list(file = "WPS ADI11 Language regression.xlsx",
        questionnaire = "ADI-WPS",
@@ -60,11 +61,51 @@ list_ADIR_files <- list(
        positive = 2)
 )
 
+# Process ADI-R data
 df_ADIR <- process_ADIR(inputs = list_ADIR_files, 
                         input_dir = file.path(input_dir, "ADI-R"))
 
 
-## Import and process ADOS data -----------------------------------------------
+## Adaptive function data -----------------------------------------------------
+
+# Import overall adaptive function scores
+file_adaptive <- "adaptive_behaviour_standard_score_2025-10-16T19_30_47.438825Z.xlsx"
+file_adaptive <- file.path(input_dir, "AdaptiveFunction", file_adaptive)
+df_adaptive <- read_excel(file_adaptive) %>% 
+  select(ID = IndexId, AdaptiveScore = `Standard Score`)
+
+# Import social adaptive function scores
+file_adaptive_social <- "social_adaptive_function___raw_values_by_test_2025-10-17T18_04_47.576986Z.xlsx"
+file_adaptive_social <- file.path(input_dir, "AdaptiveFunction", file_adaptive_social)
+df_adaptive_social <- read_excel(file_adaptive_social) %>% 
+  select(ID = indexid, SocialAdaptiveScore = numeric_value)
+
+## IQ data --------------------------------------------------------------------
+
+# Import full-scale IQ scores
+file_IQ_fsiq <- "full_scale_iq_2025-10-16T17_23_31.439311Z.xlsx"
+file_IQ_fsiq <- file.path(input_dir, "IQ", file_IQ_fsiq)
+df_IQ_fsiq <- read_excel(file_IQ_fsiq) %>% 
+  select(ID = IndexId, FSIQ = `Standard Score`)
+
+# Import aggregate full-scale IQ scores
+file_IQ_aggregate <- "aggregate_full_scale_iq_standard_score___all_values_by_test_2025-10-09T17_23_41.947473Z.xlsx"
+file_IQ_aggregate <- file.path(input_dir, "IQ", file_IQ_aggregate)
+df_IQ_aggregate <- read_excel(file_IQ_aggregate) %>% 
+  select(ID = indexid, AggregateIQ = numeric_value)
+
+# Combine FSIQ and aggregate IQ, prioritizing FSIQ
+df_IQ <- full_join(df_IQ_fsiq, df_IQ_aggregate, by = "ID") %>% 
+  mutate(IQ = ifelse(is.na(FSIQ), AggregateIQ, FSIQ)) %>% 
+  select(ID, IQ)
+
+# Import global ability composite estimates
+file_global_ability <- "global_ability_composite_estimate_2025-10-16T19_05_36.789126Z.xlsx"
+file_global_ability <- file.path(input_dir, "IQ", file_global_ability)
+df_global_ability <- read_excel(file_global_ability) %>% 
+  select(ID = IndexId, GlobalAbilityScore = `Standard Score`)
+
+## ADOS data ------------------------------------------------------------------
 
 message("Importing and processing ADOS data...")
 
@@ -79,7 +120,7 @@ df_ADOS <- df_ADOS %>%
          ADOS_Age = Age, ADOS_Date = Date)
 
 
-## Import and process ADHD data -----------------------------------------------
+## ADHD data ------------------------------------------------------------------
 
 message("Importing and processing ADHD data...")
 
@@ -110,7 +151,7 @@ df_ADHD <- df_ADHD %>%
   select(ID, ADHD = ADHD_PASS)
 
 
-## Import and process anxiety data --------------------------------------------
+## Anxiety data ---------------------------------------------------------------
 
 message("Importing and processing anxiety data...")
 
@@ -145,7 +186,7 @@ df_anxiety <- df_anxiety %>%
   select(ID, Anxiety = PASS)
 
 
-### Import and process anxiety CBCL scores ------------------------------------
+### Anxiety continuous CBCL scores --------------------------------------------
 
 file <- "CBCL618_CB682TS; Tscores.xlsx"
 file <- file.path(input_dir, "Anxiety", file)
@@ -162,7 +203,7 @@ df_anxiety_cbcl <- bind_rows(df_anxiety_cbcl_618, df_anxiety_cbcl_15) %>%
   rename(CBCL_AP_TS = score)
 
 
-### Import and process anxiety RCADS scores -----------------------------------
+### Anxiety continuous RCADS scores -------------------------------------------
 
 file <- "RCADSP_GA_TSCORE.xlsx"
 file <- file.path(input_dir, "Anxiety", file)
@@ -170,7 +211,7 @@ df_anxiety_rcads <- read_excel(file) %>%
   select(ID = indexid, score = numeric_value) 
 
 
-### Import and process anxiety SPENCE scores ----------------------------------
+### Anxiety continuous SPENCE scores ------------------------------------------
 
 file <- "SPENCEP_SPENCE_TOT_SCORE; SCAS (Jan 29, 2026 12-16-51 PM).xlsx"
 file <- file.path(input_dir, "Anxiety", file)
@@ -178,7 +219,7 @@ df_anxiety_spencep <- read_excel(file) %>%
   select(ID = indexid, score = numeric_value) 
 
 
-## Import and process depression data -----------------------------------------
+## Depression data ------------------------------------------------------------
 
 message("Importing and processing depression data...")
 
@@ -207,7 +248,7 @@ df_depression <- df_depression %>%
   select(ID, Depression = PASS)
 
 
-### Import and process depression CBCL scores ---------------------------------
+### Depression continuous CBCL scores -----------------------------------------
 
 file <- "CBCL618_CB681TS 6-18y old Affective Problems.xlsx"
 file <- file.path(input_dir, "Depression", file)
@@ -224,7 +265,7 @@ df_depression_cbcl <- bind_rows(df_depression_cbcl_618, df_depression_cbcl_15) %
   rename(CBCL_AP_TS = score)
 
 
-### Import and process depression RCADS scores --------------------------------
+### Depression continuous RCADS scores ----------------------------------------
 
 file <- "RCADSP_D_TSCORE.xlsx"
 file <- file.path(input_dir, "Depression", file)
@@ -232,7 +273,7 @@ df_depression_rcads <- read_excel(file) %>%
   select(ID = indexid, score = numeric_value) 
 
 
-## Import and process seizures data -------------------------------------------
+## Seizures data --------------------------------------------------------------
 
 message("Importing and processing seizures data...")
 
@@ -271,7 +312,7 @@ df_seizures <- df_seizures %>%
   select(ID, Seizure = PASS, Seizure_Date)
 
 
-## Import and process sleep data ----------------------------------------------
+## Sleep data -----------------------------------------------------------------
 
 message("Importing and processing sleep data...")
 
@@ -308,7 +349,7 @@ df_sleep <- df_sleep %>%
   select(ID, Sleep = PASS)
 
 
-## Import and process prematurity data ----------------------------------------
+## Prematurity data -----------------------------------------------------------
 
 message("Importing and processing prematurity data...")
 
@@ -321,7 +362,7 @@ df_prematurity <- df_prematurity %>%
   select(ID, Prematurity = PASS)
 
 
-## Import and process SSP sensory data ----------------------------------------
+## SSP sensory data -----------------------------------------------------------
 
 message("Importing and processing SSP data...")
 
@@ -340,8 +381,7 @@ df_SSP <- process_subdomain_data(files = files_SSP,
                                  input_dir = file.path(input_dir, "SSP")) 
 
 
-
-## Import and process SRS socialization data ----------------------------------
+## SRS socialization data -----------------------------------------------------
 
 message("Importing and processing SRS data...")
 
@@ -355,4 +395,82 @@ files_SRS <- c("SRS_Total" = "SRSPARENTREP_Total_score_SRSTOTT.xlsx",
 # Process SRS files
 df_SRS <- process_subdomain_data(files = files_SRS, 
                                  input_dir = file.path(input_dir, "SRS")) 
+
+
+## CCC language data ----------------------------------------------------------
+
+message("Importing and processing CCC data...")
+
+files_CCC <- c("CCC2 AS Speech-Scaled Score.xlsx",
+               "CCC2CHILD_CCCBSCAL Syntax Scaled Score.xlsx",
+               "CCC2CHILD_CCCCSCAL SemanticScaledScore CS.xlsx",
+               "CCC2CHILD_CCCDSCAL CoherenceScaledScore DS.xlsx",
+               "CCC2CHILD_CCCESCAL InappInitiationScaledScore ES.xlsx",
+               "CCC2CHILD_CCCFSCAL StereotypedScaledScore FS.xlsx",
+               "CCC2CHILD_CCCGSCAL UseofContextScaledScore GS.xlsx",
+               "CCC2CHILD_CCCHSCAL NonVerbalCommScaledScore HS.xlsx",
+               "CCC2CHILD_CCCSIDC Social Interaction Deviance Composite.xlsx")
+
+names(files_CCC) <- c("Speech", "Syntax", "Semantics", "Coherence", "Inapp_Init",
+                      "Stereotyped", "Context", "NonVerbalComm", "SIDC")
+names(files_CCC) <- paste0("CCC_", names(files_CCC))
+
+df_CCC <- process_subdomain_data(files = files_CCC,
+                                 input_dir = file.path(input_dir, "Language"))
+
+
+## RBS repetitive behaviour data ----------------------------------------------
+
+message("Importing and processing RBS data...")
+
+# Files to import
+files_RBS <- c("RBSR_RBSALLT Overall Score.xlsx",
+               "RBSR_RBSCPT Compulsive Behavior Tot Score.xlsx",
+               "RBSR_RBSRST Restricted Behavior Tot Score.xlsx",
+               "RBSR_RBSRTT Ritual Behavior Tot Score.xlsx",
+               "RBSR_RBSSIT Self Injurious Behavior Tot Score.xlsx",
+               "RBSR_RBSSMT  Sameness Behavior Tot Scor.xlsx",
+               "RBSR_RBSSTT Sterotyped Tot Score.xlsx")
+
+# RBS sub-domain codes
+codes <- c("ALLT", "CPT", "RST", "RTT", "SIT", "SMT", "STT")
+codes <- paste0("RBSR_RBS", codes)
+
+# Add codes to file names
+names(files_RBS) <- codes
+
+# Process RBS data
+df_RBS <- process_RBS_data(files = files_RBS, 
+                           input_dir = file.path(input_dir, "RBS-R"))
+
+# Export CSV
+outfile <- "RBS.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(df_RBS, outfile)
+
+
+## Combine data ---------------------------------------------------------------
+
+# Join ADI-R data with other measures
+df_ADIR <- df_ADIR %>% 
+  left_join(df_demographics, by = "ID") %>% 
+  left_join(df_adaptive, by = "ID") %>% 
+  left_join(df_adaptive_social, by = "ID") %>% 
+  left_join(df_IQ, by = "ID") %>% 
+  left_join(df_global_ability, by = "ID") %>% 
+  left_join(df_ADOS, by = "ID") %>% 
+  left_join(df_ADHD, by = "ID") %>% 
+  left_join(df_anxiety, by = "ID") %>% 
+  left_join(df_depression, by = "ID") %>% 
+  left_join(df_seizures, by = "ID") %>% 
+  left_join(df_sleep, by = "ID") %>% 
+  left_join(df_prematurity, by = "ID") %>% 
+  left_join(df_SSP, by = "ID") %>% 
+  left_join(df_SRS, by = "ID") %>%  
+  left_join(df_CCC, by = "ID")
+
+# Export
+outfile <- outfile <- "regressive_autism_data_new.csv"
+outfile <- file.path(output_dir, outfile)
+write_csv(x = df_ADIR, file = outfile)
 
