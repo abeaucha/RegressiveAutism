@@ -294,5 +294,8 @@ df_sleep_files <- tibble(
 ) %>% 
   mutate(colname = paste0(colname, "_PASS"))
 
+df_sleep <- process_sleep_data(inputs = df_sleep_files,
+                               input_dir = file.path(input_dir, "Sleep"))
 
-
+df_sleep <- df_sleep %>% 
+  select(ID, Sleep = Sleep_PASS)
